@@ -25,4 +25,8 @@
     <Folder Include="Plazas\" />
   </ItemGroup>
 
+	<ItemGroup>
+		<Folder Include="Shadow Legacy\" />
+	</ItemGroup>
+
 </Project>

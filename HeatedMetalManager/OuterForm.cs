@@ -1,6 +1,7 @@
 ﻿using HeatedMetalManager;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 public partial class OuterForm : Form
 {
@@ -101,7 +102,7 @@ public partial class OuterForm : Form
         }
     }
 
-    private void CheckInstallation()
+    private async Task CheckInstallation()
     {
         if (fileInstaller?.HasLumaPlayFiles() == true)
         {
@@ -111,6 +112,11 @@ public partial class OuterForm : Form
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning
             );
+
+            if (result == DialogResult.Yes)
+            {
+                await HandleLumaPlayReplacement();
+            }
 
             updateButton.Enabled = result == DialogResult.Yes;
             if (!updateButton.Enabled)
@@ -167,8 +173,6 @@ public partial class OuterForm : Form
             if (localVersion == currentTag)
             {
                 statusLabel.Text = "Already up to date!";
-                // Even if up to date, we still need to handle LumaPlay replacement
-                await HandleLumaPlayReplacement();
                 return;
             }
 
@@ -181,9 +185,6 @@ public partial class OuterForm : Form
             statusLabel.Text = "Extracting update...";
             await ExtractUpdate(tempFile);
             File.WriteAllText(Path.Combine(gameDirectory, VersionFile), currentTag);
-
-            // Handle LumaPlay replacement
-            await HandleLumaPlayReplacement();
 
             // Cleanup
             File.Delete(tempFile);
@@ -209,13 +210,33 @@ public partial class OuterForm : Form
     {
         if (fileInstaller == null) return;
 
-        statusLabel.Text = "Removing existing LumaPlay files...";
-        fileInstaller.RemoveLumaPlayFiles();
-        progressBar.Value = 75;
+        try
+        {
+            statusLabel.Text = "Removing existing LumaPlay files...";
+            fileInstaller.RemoveLumaPlayFiles();
+            progressBar.Value = 75;
 
-        statusLabel.Text = "Installing new files...";
-        fileInstaller.InstallPlazaFiles();
-        progressBar.Value = 100;
+            MessageBox.Show(
+
+                "LumaPlay files have been successfully removed from your game directory.",
+                "LumaPlay Removal Success",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+                );
+
+            statusLabel.Text = "Installing new files...";
+            fileInstaller.InstallPlazaFiles();
+            progressBar.Value = 100;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"An error occurred while handling LumaPlay files: {ex.Message}",
+                "Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            throw;
+        }
     }
 
     private async Task<(string TagName, string DownloadUrl)> GetLatestReleaseInfo()

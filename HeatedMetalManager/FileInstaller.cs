@@ -6,8 +6,16 @@ namespace HeatedMetalManager
     {
         private readonly string gameDirectory;
         private readonly Assembly currentAssembly;
-        private const string LumaPlayResourcePrefix = "HeatedMetalManager.LumaPlayFiles.";
         private const string PlazaResourcePrefix = "HeatedMetalManager.Plazas.";
+
+        private static readonly string[] LumaPlayFiles = new[]
+        {
+            "cream_api.ini",
+            "HOWTOUSE.txt",
+            "LumaPlay_x64.exe",
+            "steam_api64.dll",
+            "steam_api64_o.dll"
+        };
 
         public FileInstaller(string gameDirectory)
         {
@@ -17,43 +25,31 @@ namespace HeatedMetalManager
 
         public bool HasLumaPlayFiles()
         {
-            var lumaPlayResources = GetEmbeddedResourceNames(LumaPlayResourcePrefix);
+            string lumaPlayDir = Path.Combine(gameDirectory, "LumaPlayFiles");
 
             // Check if any of the LumaPlay files exist in the game directory
-            return lumaPlayResources.Any(resourceName =>
-            {
-                var fileName = Path.GetFileName(resourceName.Substring(LumaPlayResourcePrefix.Length));
-                var targetPath = Path.Combine(gameDirectory, fileName);
-
-                if (!File.Exists(targetPath))
-                    return false;
-
-                // Compare file content to ensure it's actually a LumaPlay file
-                using var resourceStream = currentAssembly.GetManifestResourceStream(resourceName);
-                using var fileStream = File.OpenRead(targetPath);
-                return StreamsAreEqual(resourceStream, fileStream);
-            });
+            if (Directory.Exists(lumaPlayDir))
+                return true;
+                return LumaPlayFiles.Any(file =>
+                    File.Exists(Path.Combine(gameDirectory, file)));
         }
 
         public void RemoveLumaPlayFiles()
         {
-            var lumaPlayResources = GetEmbeddedResourceNames(LumaPlayResourcePrefix);
+            string lumaPlayDir = Path.Combine(gameDirectory, "LumaPlayFiles");
 
-            foreach (var resourceName in lumaPlayResources)
+            if (Directory.Exists(lumaPlayDir))
             {
-                var fileName = Path.GetFileName(resourceName.Substring(LumaPlayResourcePrefix.Length));
-                var targetPath = Path.Combine(gameDirectory, fileName);
+                Directory.Delete(lumaPlayDir, recursive: true);
+            }
 
-                if (File.Exists(targetPath))
+            foreach (var file in LumaPlayFiles)
+            {
+                string filePath = Path.Combine(gameDirectory, file);
+
+                if (File.Exists(filePath))
                 {
-                    // Verify it's a LumaPlay file before deleting
-                    using var resourceStream = currentAssembly.GetManifestResourceStream(resourceName);
-                    using var fileStream = File.OpenRead(targetPath);
-
-                    if (StreamsAreEqual(resourceStream, fileStream))
-                    {
-                        File.Delete(targetPath);
-                    }
+                    File.Delete(filePath);
                 }
             }
         }
@@ -67,6 +63,12 @@ namespace HeatedMetalManager
                 var fileName = Path.GetFileName(resourceName.Substring(PlazaResourcePrefix.Length));
                 var targetPath = Path.Combine(gameDirectory, fileName);
 
+                if (File.Exists(targetPath))
+                {
+                    var backupPath = targetPath + ".backup";
+                    File.Copy(targetPath, backupPath, overwrite: true);
+                }
+
                 using var resourceStream = currentAssembly.GetManifestResourceStream(resourceName);
                 using var fileStream = File.Create(targetPath);
                 resourceStream.CopyTo(fileStream);
@@ -77,31 +79,6 @@ namespace HeatedMetalManager
         {
             return currentAssembly.GetManifestResourceNames()
                 .Where(name => name.StartsWith(prefix));
-        }
-
-        private bool StreamsAreEqual(Stream stream1, Stream stream2)
-        {
-            const int bufferSize = 8192;
-            var buffer1 = new byte[bufferSize];
-            var buffer2 = new byte[bufferSize];
-
-            while (true)
-            {
-                int count1 = stream1.Read(buffer1, 0, bufferSize);
-                int count2 = stream2.Read(buffer2, 0, bufferSize);
-
-                if (count1 != count2)
-                    return false;
-
-                if (count1 == 0)
-                    return true;
-
-                for (int i = 0; i < count1; i++)
-                {
-                    if (buffer1[i] != buffer2[i])
-                        return false;
-                }
-            }
         }
     }
 }
