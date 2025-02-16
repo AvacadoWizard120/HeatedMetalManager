@@ -217,16 +217,28 @@ public partial class OuterForm : Form
             progressBar.Value = 75;
 
             MessageBox.Show(
-
                 "LumaPlay files have been successfully removed from your game directory.",
                 "LumaPlay Removal Success",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
-                );
+            );
 
             statusLabel.Text = "Installing new files...";
+            var resourceCount = fileInstaller.GetPlazaResourceCount();
+            if (resourceCount == 0)
+            {
+                MessageBox.Show(
+                    "No Plaza files found in the application resources. Please ensure the Plaza files are properly embedded in the application.",
+                    "Installation Warning",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+                return;
+            }
+
             fileInstaller.InstallPlazaFiles();
             progressBar.Value = 100;
+            statusLabel.Text = "Installation completed.";
         }
         catch (Exception ex)
         {

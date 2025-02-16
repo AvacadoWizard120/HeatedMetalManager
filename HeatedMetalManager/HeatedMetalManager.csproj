@@ -22,11 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Plazas\" />
+	  <EmbeddedResource Include="Plazas\**\*" />
   </ItemGroup>
 
 	<ItemGroup>
-		<Folder Include="Shadow Legacy\" />
+		<EmbeddedResource Include="Shadow Legacy\**\*" />
 	</ItemGroup>
 
 </Project>

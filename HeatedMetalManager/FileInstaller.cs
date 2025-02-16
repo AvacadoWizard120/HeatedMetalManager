@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics;
+using System.Reflection;
 
 namespace HeatedMetalManager
 {
@@ -56,23 +57,56 @@ namespace HeatedMetalManager
 
         public void InstallPlazaFiles()
         {
-            var plazaResources = GetEmbeddedResourceNames(PlazaResourcePrefix);
+            var plazaResources = GetEmbeddedResourceNames(PlazaResourcePrefix).ToList();
+            if (plazaResources.Count == 0)
+            {
+                Debug.WriteLine("No Plaza resources found!");
+                return;
+            }
 
             foreach (var resourceName in plazaResources)
             {
-                var fileName = Path.GetFileName(resourceName.Substring(PlazaResourcePrefix.Length));
-                var targetPath = Path.Combine(gameDirectory, fileName);
-
-                if (File.Exists(targetPath))
+                try
                 {
-                    var backupPath = targetPath + ".backup";
-                    File.Copy(targetPath, backupPath, overwrite: true);
-                }
+                    var fileName = Path.GetFileName(resourceName.Substring(PlazaResourcePrefix.Length));
+                    var targetPath = Path.Combine(gameDirectory, fileName);
+                    Debug.WriteLine($"Installing: {fileName} to {targetPath}");
 
-                using var resourceStream = currentAssembly.GetManifestResourceStream(resourceName);
-                using var fileStream = File.Create(targetPath);
-                resourceStream.CopyTo(fileStream);
+                    if (File.Exists(targetPath))
+                    {
+                        var backupPath = targetPath + ".backup";
+                        Debug.WriteLine($"Creating backup at: {backupPath}");
+                        File.Copy(targetPath, backupPath, overwrite: true);
+                    }
+
+                    using var resourceStream = currentAssembly.GetManifestResourceStream(resourceName);
+                    if (resourceStream == null)
+                    {
+                        Debug.WriteLine($"Failed to get resource stream for: {resourceName}");
+                        continue;
+                    }
+
+                    using var fileStream = File.Create(targetPath);
+                    resourceStream.CopyTo(fileStream);
+                    Debug.WriteLine($"Successfully installed: {fileName}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error installing {resourceName}: {ex.Message}");
+                    throw;
+                }
             }
+        }
+
+        public int GetPlazaResourceCount()
+        {
+            var resources = GetEmbeddedResourceNames(PlazaResourcePrefix).ToList();
+            Debug.WriteLine($"Found {resources.Count} Plaza resources:");
+            foreach (var resource in resources)
+            {
+                Debug.WriteLine($"Resource: {resource}");
+            }
+            return resources.Count;
         }
 
         private IEnumerable<string> GetEmbeddedResourceNames(string prefix)
