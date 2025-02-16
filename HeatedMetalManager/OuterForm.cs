@@ -1,7 +1,6 @@
 ﻿using HeatedMetalManager;
 using System.Diagnostics;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 public partial class OuterForm : Form
 {
