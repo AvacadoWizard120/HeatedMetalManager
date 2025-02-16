@@ -32,7 +32,7 @@ public partial class OuterForm : Form
     private void InitializeComponent()
     {
         Text = "Heated Metal Manager";
-        Size = new Size(600, 200);
+        Size = new Size(600, 600);
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
 
@@ -168,8 +168,9 @@ public partial class OuterForm : Form
             statusLabel.Text = "Checking for updates...";
             var (currentTag, downloadUrl) = await GetLatestReleaseInfo();
             var localVersion = GetLocalVersion();
+            var isHeatedMetalInstalled = GetHMInstall();
 
-            if (localVersion == currentTag)
+            if (localVersion == currentTag && isHeatedMetalInstalled)
             {
                 statusLabel.Text = "Already up to date!";
                 return;
@@ -268,6 +269,11 @@ public partial class OuterForm : Form
     {
         var versionFile = Path.Combine(gameDirectory, VersionFile);
         return File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : null;
+    }
+
+    private bool GetHMInstall()
+    {
+        return fileInstaller.HasHeatedMetalInstalled();
     }
 
     private async Task DownloadFileWithProgress(string url, string destination, ProgressBar progress)

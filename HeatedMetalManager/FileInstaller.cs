@@ -30,9 +30,21 @@ namespace HeatedMetalManager
 
             // Check if any of the LumaPlay files exist in the game directory
             if (Directory.Exists(lumaPlayDir))
+            {
                 return true;
-                return LumaPlayFiles.Any(file =>
-                    File.Exists(Path.Combine(gameDirectory, file)));
+            }
+            else return false;
+        }
+
+        public bool HasHeatedMetalInstalled()
+        {
+            string heatedMetalDir = Path.Combine(gameDirectory, "HeatedMetal");
+
+            if (Directory.Exists(heatedMetalDir))
+            {
+                return true;
+            }
+            else return false;
         }
 
         public void RemoveLumaPlayFiles()
