@@ -159,33 +159,34 @@ public partial class OuterForm : Form
             browseButton.Enabled = false;
             progressBar.Value = 0;
 
-            // First check for updates
+            // Check versions
             statusLabel.Text = "Checking for updates...";
             var (currentTag, downloadUrl) = await GetLatestReleaseInfo();
             var localVersion = GetLocalVersion();
 
             if (localVersion == currentTag)
             {
-                // If no update needed, just handle LumaPlay
+                statusLabel.Text = "Already up to date!";
+                // Even if up to date, we still need to handle LumaPlay replacement
                 await HandleLumaPlayReplacement();
-            }
-            else
-            {
-                // Download and install update
-                statusLabel.Text = "Downloading update...";
-                var tempFile = Path.Combine(Path.GetTempPath(), ReleaseFile);
-                await DownloadFileWithProgress(downloadUrl, tempFile, progressBar);
-
-                statusLabel.Text = "Extracting update...";
-                await ExtractUpdate(tempFile);
-                File.WriteAllText(Path.Combine(gameDirectory, VersionFile), currentTag);
-
-                // After update, handle LumaPlay
-                await HandleLumaPlayReplacement();
-
-                File.Delete(tempFile);
+                return;
             }
 
+            // Download update
+            statusLabel.Text = "Downloading update...";
+            var tempFile = Path.Combine(Path.GetTempPath(), ReleaseFile);
+            await DownloadFileWithProgress(downloadUrl, tempFile, progressBar);
+
+            // Extract update
+            statusLabel.Text = "Extracting update...";
+            await ExtractUpdate(tempFile);
+            File.WriteAllText(Path.Combine(gameDirectory, VersionFile), currentTag);
+
+            // Handle LumaPlay replacement
+            await HandleLumaPlayReplacement();
+
+            // Cleanup
+            File.Delete(tempFile);
             statusLabel.Text = "Installation completed successfully!";
             MessageBox.Show("Installation completed successfully!", "Success",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -200,6 +201,7 @@ public partial class OuterForm : Form
         {
             updateButton.Enabled = true;
             browseButton.Enabled = true;
+            progressBar.Value = 0;
         }
     }
 

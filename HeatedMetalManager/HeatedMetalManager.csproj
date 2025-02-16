@@ -22,7 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="LumaPlayFiles\" />
     <Folder Include="Plazas\" />
   </ItemGroup>
 
