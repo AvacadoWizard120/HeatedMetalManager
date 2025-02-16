@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="LumaPlay Files\" />
+    <Folder Include="LumaPlayFiles\" />
     <Folder Include="Plazas\" />
   </ItemGroup>
 
