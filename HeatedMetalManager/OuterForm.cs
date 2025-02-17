@@ -66,7 +66,7 @@ public partial class OuterForm : Form
         changeVersionsButton = new Button
         {
             Text = "Swap Versions",
-            Location = new Point(120, 160),
+            Location = new Point(200, 200),
             Width = 100
         };
 

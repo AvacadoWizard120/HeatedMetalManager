@@ -133,7 +133,14 @@ namespace HeatedMetalManager
 
                     string HeatedMetalDLL = Path.Combine(gameDirectory, "DefaultArgs.dll");
 
+                    string backupDLL = Path.Combine(assemblyDirectory, "DefaultArgs.dll");
+
                     progress?.Report(25);
+
+                    if (File.Exists(backupDLL))
+                    {
+                        File.Delete(backupDLL);
+                    }
 
                     File.Move(HeatedMetalDLL, backupDir);
 
@@ -183,13 +190,22 @@ namespace HeatedMetalManager
                         progress?.Report(25);
                         string backupDir = System.IO.Directory.CreateDirectory(Path.Combine(assemblyDirectory, "Backups")).FullName;
                         string HeatedMetalDLL = Path.Combine(backupDir, "DefaultArgs.dll");
+                        string targetPath = Path.Combine(gameDirectory, "DefaultArgs.dll");
+
 
                         progress?.Report(50);
 
-                        File.Delete(Path.Combine(gameDirectory, "defaultargs.dll"));
+                        if (File.Exists(Path.Combine(gameDirectory, "defaultargs.dll")))
+                        {
+                            File.Delete(Path.Combine(gameDirectory, "defaultargs.dll"));
+                        }
+
+                        if (File.Exists(targetPath))
+                        {
+                            File.Delete(targetPath);
+                        }
 
                         progress?.Report(75);
-
                         File.Move(HeatedMetalDLL, gameDirectory);
 
                     }
