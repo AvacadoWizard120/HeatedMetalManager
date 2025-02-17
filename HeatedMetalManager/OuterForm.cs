@@ -23,6 +23,7 @@ public partial class OuterForm : Form
     private Label statusLabel;
     private Label isVanillaLabel;
     private Label releaseVersionLabel;
+    private Label VoHM;
 
     // Make sure to add a new label for If the default args is vanilla or Heated Metal
 
@@ -106,14 +107,23 @@ public partial class OuterForm : Form
             AutoSize = true
         };
 
+        VoHM = new Label
+        {
+            Location = new Point(10, 200),
+            Width = 100,
+            AutoSize = true
+        };
+
         Controls.AddRange(new Control[] {
                 dirLabel, dirTextBox, browseButton,
                 progressBar, statusLabel, updateButton,
-                isVanillaLabel, releaseVersionLabel
+                isVanillaLabel, releaseVersionLabel, VoHM,
+                changeVersionsButton
             });
 
         browseButton.Click += BrowseButton_Click;
         updateButton.Click += UpdateButton_Click;
+        changeVersionsButton.Click += ChangeVersionsButton_CLick;
     }
 
     private void LoadSavedDirectory()
@@ -123,7 +133,8 @@ public partial class OuterForm : Form
         {
             gameDirectory = savedDirectory;
             dirTextBox.Text = gameDirectory;
-            fileInstaller = new FileInstaller(gameDirectory);
+            var progress = new Progress<int>(value => progressBar.Value = value);
+            fileInstaller = new FileInstaller(gameDirectory, progress);
             CheckInstallation();
         }
     }
@@ -153,6 +164,7 @@ public partial class OuterForm : Form
         else
         {
             updateButton.Enabled = true;
+            changeVersionsButton.Enabled = true;
             statusLabel.Text = "Ready to check for updates.";
         }
 
@@ -168,6 +180,16 @@ public partial class OuterForm : Form
             settingsManager.ChangeVersions(true);
             isVanillaLabel.Text = "Vanilla";
             releaseVersionLabel.Text = "Latest HM Release: " + currentTag;
+        }
+
+        if (fileInstaller.CheckDefualtArgsDLL())
+        {
+            VoHM.Text = "Using Heated Metal";
+            settingsManager.SetUsingVanilla(false);
+        } else
+        {
+            VoHM.Text = "Using Vanilla";
+            settingsManager.SetUsingVanilla(true);
         }
     }
 
@@ -186,7 +208,8 @@ public partial class OuterForm : Form
                 gameDirectory = dialog.SelectedPath;
                 dirTextBox.Text = gameDirectory;
                 settingsManager.SetGameDirectory(gameDirectory);
-                fileInstaller = new FileInstaller(gameDirectory);
+                var progress = new Progress<int>(value => progressBar.Value = value);
+                fileInstaller = new FileInstaller(gameDirectory, progress);
                 CheckInstallation();
             }
             else
@@ -245,6 +268,22 @@ public partial class OuterForm : Form
             browseButton.Enabled = true;
             progressBar.Value = 0;
         }
+    }
+
+    private async void ChangeVersionsButton_CLick(object? sender, EventArgs e)
+    {
+        updateButton.Enabled = false;
+        browseButton.Enabled = false;
+        changeVersionsButton.Enabled = false;
+        await fileInstaller.SwapDefaultArgs(settingsManager.UsingVanilla);
+
+        statusLabel.Text = "Changed versions successfully!";
+        MessageBox.Show("Changed versions successfully!", "Success",
+            MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+        updateButton.Enabled = true;
+        browseButton.Enabled = true;
+        changeVersionsButton.Enabled = true;
     }
 
     private async Task HandleLumaPlayReplacement()
@@ -389,11 +428,26 @@ public partial class OuterForm : Form
         }
         catch (Exception ex) when (IsAntivirusError(ex))
         {
-            // Attempt to add antivirus exclusion and retry
-            await AddAntivirusExclusionAsync(directoryToExclude);
-            exclusionAdded = true;
-            await RunExtractionInternal(toolPath, command, archivePath);
-            isExtracted = true;
+            var result = MessageBox.Show(
+                "Your antivirus fucked HeatedMetal.7z, would you like the Manager to add a temporary exclusion and continue?",
+                "Antivirus shit",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question
+            );
+
+            if (result == DialogResult.Yes)
+            {
+                await AddAntivirusExclusionAsync(directoryToExclude);
+                exclusionAdded = true;
+                await RunExtractionInternal(toolPath, command, archivePath);
+                isExtracted = true;
+            } else
+            {
+                MessageBox.Show("Aborted... Closing manager.", "Exiting", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Application.Exit();
+            }
+            
+            
         }
         finally
         {

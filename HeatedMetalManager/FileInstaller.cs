@@ -8,7 +8,9 @@ namespace HeatedMetalManager
         private readonly string gameDirectory;
         private readonly string assemblyDirectory;
         private readonly Assembly currentAssembly;
+        private readonly IProgress<int>? progress;
         private const string PlazaResourcePrefix = "HeatedMetalManager.Plazas.";
+        private const string ShadowLegacyDLLPrefix = "Shadow Legacy.";
 
         private static readonly string[] LumaPlayFiles = new[]
         {
@@ -19,9 +21,10 @@ namespace HeatedMetalManager
             "steam_api64_o.dll"
         };
 
-        public FileInstaller(string gameDirectory)
+        public FileInstaller(string gameDirectory, IProgress<int>? progress = null)
         {
             this.gameDirectory = gameDirectory;
+            this.progress = progress;
             this.currentAssembly = Assembly.GetExecutingAssembly();
             this.assemblyDirectory = System.AppContext.BaseDirectory;
         }
@@ -78,6 +81,9 @@ namespace HeatedMetalManager
                 return;
             }
 
+            int totalFiles = plazaResources.Count;
+            int completedFiles = 0;
+
             foreach (var resourceName in plazaResources)
             {
                 try
@@ -102,6 +108,10 @@ namespace HeatedMetalManager
 
                     using var fileStream = File.Create(targetPath);
                     resourceStream.CopyTo(fileStream);
+
+                    completedFiles++;
+                    int progressPercentage = (completedFiles * 100) / totalFiles;
+                    progress?.Report(progressPercentage);
                     Debug.WriteLine($"Successfully installed: {fileName}");
                 }
                 catch (Exception ex)
@@ -110,6 +120,89 @@ namespace HeatedMetalManager
                     throw;
                 }
             }
+        }
+
+        public async Task SwapDefaultArgs(bool isVanilla)
+        {
+            await Task.Run(() =>
+            {
+                progress?.Report(0);
+                if (!isVanilla)
+                {
+                    string backupDir = System.IO.Directory.CreateDirectory(Path.Combine(assemblyDirectory, "Backups")).FullName;
+
+                    string HeatedMetalDLL = Path.Combine(gameDirectory, "DefaultArgs.dll");
+
+                    progress?.Report(25);
+
+                    File.Move(HeatedMetalDLL, backupDir);
+
+                    progress?.Report(50);
+
+                    var vanillaResources = GetEmbeddedResourceNames(ShadowLegacyDLLPrefix).ToList();
+
+                    foreach (var resourceName in vanillaResources)
+                    {
+                        try
+                        {
+                            progress?.Report(75);
+                            var fileName = Path.GetFileName(resourceName.Substring(PlazaResourcePrefix.Length));
+                            var targetPath = Path.Combine(gameDirectory, fileName);
+                            Debug.WriteLine($"Moving: {fileName} to {targetPath}");
+
+                            if (File.Exists(targetPath))
+                            {
+                                var backupPath = targetPath + ".backup";
+                                Debug.WriteLine($"Creating backup at: {backupPath}");
+                                File.Copy(targetPath, backupPath, overwrite: true);
+                            }
+
+                            using var resourceStream = currentAssembly.GetManifestResourceStream(resourceName);
+                            if (resourceStream == null)
+                            {
+                                Debug.WriteLine($"Failed to get resource stream for: {resourceName}");
+                                continue;
+                            }
+
+                            using var fileStream = File.Create(targetPath);
+                            resourceStream.CopyTo(fileStream);
+                            Debug.WriteLine($"Successfully moved: {fileName}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error moving {resourceName}: {ex.Message}");
+                            throw;
+                        }
+                    }
+                }
+
+                if (isVanilla)
+                {
+                    try
+                    {
+                        progress?.Report(25);
+                        string backupDir = System.IO.Directory.CreateDirectory(Path.Combine(assemblyDirectory, "Backups")).FullName;
+                        string HeatedMetalDLL = Path.Combine(backupDir, "DefaultArgs.dll");
+
+                        progress?.Report(50);
+
+                        File.Delete(Path.Combine(gameDirectory, "defaultargs.dll"));
+
+                        progress?.Report(75);
+
+                        File.Move(HeatedMetalDLL, gameDirectory);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error moving DefaultArgs.dll to gameDirectory: {ex.Message}");
+                        throw;
+                    }
+
+                }
+
+                progress?.Report(100);
+            });
         }
 
         public int GetPlazaResourceCount()
@@ -138,10 +231,12 @@ namespace HeatedMetalManager
             {
                 return true;
             }
-            else
+            else if (File.Exists(ShadowLegacyDLL))
             {
                 return false;
             }
+
+            return false;
         }
     }
 }

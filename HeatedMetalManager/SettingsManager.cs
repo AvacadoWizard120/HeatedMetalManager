@@ -7,7 +7,8 @@ namespace HeatedMetalManager
     {
         public string? GameDirectory { get; set; }
 
-        public bool? IsVanilla { get; set; }
+        public bool IsVanilla { get; set; }
+        public bool UsingVanilla { get; set; }
     }
 
     public class SettingsManager
@@ -65,11 +66,20 @@ namespace HeatedMetalManager
             SaveSettings();
         }
 
-        public bool? CheckIsVanilla() => currentSettings.IsVanilla;
+        public bool IsVanilla() => currentSettings.IsVanilla;
 
         public void ChangeVersions(bool isVanilla)
         {
             currentSettings.IsVanilla = isVanilla;
+            SaveSettings();
+        }
+
+
+        public bool UsingVanilla => currentSettings.UsingVanilla;
+
+        public void SetUsingVanilla(bool usingVanilla)
+        {
+            currentSettings.UsingVanilla = usingVanilla;
             SaveSettings();
         }
     }
