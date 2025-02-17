@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 using System.Reflection;
 
 namespace HeatedMetalManager
@@ -223,18 +224,32 @@ namespace HeatedMetalManager
 
         public bool CheckDefaultArgsDLL()
         {
-            string HeatedMetalDLL = Path.Combine(gameDirectory, "DefaultArgs.dll");
-            string ShadowLegacyDLL = Path.Combine(gameDirectory, "defaultargs.dll");
 
-            if (File.Exists(HeatedMetalDLL))
+            long vanillaDLLSize = 5551816;
+            long HMDLLSize = 18432;
+
+            if (!string.IsNullOrEmpty(gameDirectory))
             {
-                return true;
-            }
-            else if (File.Exists(ShadowLegacyDLL))
-            {
-                return false;
+                string[] files = Directory.GetFiles(gameDirectory, "*.*", SearchOption.AllDirectories);
+
+                foreach (string file in files)
+                {
+                    FileInfo fileInfo = new FileInfo(file);
+                    if (fileInfo.Length == vanillaDLLSize)
+                    {
+                        Debug.WriteLine("FOUND VANILLA DLL");
+                        return false;
+                    } else if (fileInfo.Length == HMDLLSize)
+                    {
+                        Debug.WriteLine("FOUND HEATED METAL DLL");
+                        return true;
+                    }
+                }
             }
 
+
+
+            Debug.WriteLine("NEITHER DLLs FOUND!!!");
             return false;
         }
     }

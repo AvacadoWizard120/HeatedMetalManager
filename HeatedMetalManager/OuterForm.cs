@@ -130,8 +130,6 @@ public partial class OuterForm : Form
         var progress = new Progress<int>(value => progressBar.Value = value);
 
         fileInstaller = new FileInstaller(gameDirectory, progress);
-
-        UpdateUIVersion();
     }
 
     private void LoadSavedDirectory()
