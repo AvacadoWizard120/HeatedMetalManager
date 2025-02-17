@@ -126,98 +126,81 @@ namespace HeatedMetalManager
         {
             await Task.Run(() =>
             {
-                progress?.Report(0);
-                if (!isVanilla)
+                try
                 {
-                    string backupDir = System.IO.Directory.CreateDirectory(Path.Combine(assemblyDirectory, "Backups")).FullName;
+                    progress?.Report(0);
+                    string backupDir = Path.Combine(assemblyDirectory, "Backups");
+                    Directory.CreateDirectory(backupDir);
 
-                    string HeatedMetalDLL = Path.Combine(gameDirectory, "DefaultArgs.dll");
-
-                    string backupDLL = Path.Combine(assemblyDirectory, "DefaultArgs.dll");
-
-                    progress?.Report(25);
-
-                    if (File.Exists(backupDLL))
+                    if (!isVanilla)
                     {
-                        File.Delete(backupDLL);
-                    }
+                        progress?.Report(25);
+                        string sourceFile = Path.Combine(gameDirectory, "DefaultArgs.dll");
+                        string destFile = Path.Combine(backupDir, "DefaultArgs.dll");
 
-                    File.Move(HeatedMetalDLL, backupDir);
+                        if (!File.Exists(sourceFile))
+                        {
+                            throw new FileNotFoundException("DefaultArgs.dll not found in game directory.");
+                        }
 
-                    progress?.Report(50);
+                        if (File.Exists(destFile))
+                        {
+                            File.Delete(destFile);
+                        }
 
-                    var vanillaResources = GetEmbeddedResourceNames(ShadowLegacyDLLPrefix).ToList();
+                        File.Move(sourceFile, destFile);
+                        progress?.Report(50);
 
-                    foreach (var resourceName in vanillaResources)
-                    {
-                        try
+                        var vanillaResources = GetEmbeddedResourceNames(ShadowLegacyDLLPrefix).ToList();
+                        foreach (var resourceName in vanillaResources)
                         {
                             progress?.Report(75);
-                            var fileName = Path.GetFileName(resourceName.Substring(PlazaResourcePrefix.Length));
+                            var fileName = Path.GetFileName(resourceName.Substring(ShadowLegacyDLLPrefix.Length));
                             var targetPath = Path.Combine(gameDirectory, fileName);
-                            Debug.WriteLine($"Moving: {fileName} to {targetPath}");
-
-                            if (File.Exists(targetPath))
-                            {
-                                var backupPath = targetPath + ".backup";
-                                Debug.WriteLine($"Creating backup at: {backupPath}");
-                                File.Copy(targetPath, backupPath, overwrite: true);
-                            }
 
                             using var resourceStream = currentAssembly.GetManifestResourceStream(resourceName);
                             if (resourceStream == null)
                             {
-                                Debug.WriteLine($"Failed to get resource stream for: {resourceName}");
-                                continue;
+                                throw new InvalidOperationException($"Failed to get resource stream for: {resourceName}");
                             }
 
                             using var fileStream = File.Create(targetPath);
                             resourceStream.CopyTo(fileStream);
-                            Debug.WriteLine($"Successfully moved: {fileName}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Error moving {resourceName}: {ex.Message}");
-                            throw;
                         }
                     }
-                }
-
-                if (isVanilla)
-                {
-                    try
+                    else
                     {
                         progress?.Report(25);
-                        string backupDir = System.IO.Directory.CreateDirectory(Path.Combine(assemblyDirectory, "Backups")).FullName;
-                        string HeatedMetalDLL = Path.Combine(backupDir, "DefaultArgs.dll");
-                        string targetPath = Path.Combine(gameDirectory, "DefaultArgs.dll");
+                        string sourceFile = Path.Combine(backupDir, "DefaultArgs.dll");
+                        string destFile = Path.Combine(gameDirectory, "DefaultArgs.dll");
 
-
-                        progress?.Report(50);
+                        if (!File.Exists(sourceFile))
+                        {
+                            throw new FileNotFoundException("Backup DefaultArgs.dll not found.");
+                        }
 
                         if (File.Exists(Path.Combine(gameDirectory, "defaultargs.dll")))
                         {
                             File.Delete(Path.Combine(gameDirectory, "defaultargs.dll"));
                         }
 
-                        if (File.Exists(targetPath))
+                        if (File.Exists(destFile))
                         {
-                            File.Delete(targetPath);
+                            File.Delete(destFile);
                         }
 
+                        progress?.Report(50);
+                        File.Move(sourceFile, destFile);
                         progress?.Report(75);
-                        File.Move(HeatedMetalDLL, gameDirectory);
-
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Error moving DefaultArgs.dll to gameDirectory: {ex.Message}");
-                        throw;
                     }
 
+                    progress?.Report(100);
                 }
-
-                progress?.Report(100);
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error in SwapDefaultArgs: {ex.Message}");
+                    throw;
+                }
             });
         }
 
