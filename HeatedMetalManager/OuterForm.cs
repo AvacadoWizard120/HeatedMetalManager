@@ -1,4 +1,5 @@
 ﻿using HeatedMetalManager;
+using System;
 using System.Diagnostics;
 using System.Text.Json;
 
@@ -126,6 +127,10 @@ public partial class OuterForm : Form
         updateButton.Click += UpdateButton_Click;
         changeVersionsButton.Click += ChangeVersionsButton_CLick;
 
+        var progress = new Progress<int>(value => progressBar.Value = value);
+
+        fileInstaller = new FileInstaller(gameDirectory, progress);
+
         UpdateUIVersion();
     }
 
@@ -136,8 +141,6 @@ public partial class OuterForm : Form
         {
             gameDirectory = savedDirectory;
             dirTextBox.Text = gameDirectory;
-            var progress = new Progress<int>(value => progressBar.Value = value);
-            fileInstaller = new FileInstaller(gameDirectory, progress);
             CheckInstallation();
         }
 
