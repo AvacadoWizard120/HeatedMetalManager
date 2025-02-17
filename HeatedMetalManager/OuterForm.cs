@@ -125,6 +125,8 @@ public partial class OuterForm : Form
         browseButton.Click += BrowseButton_Click;
         updateButton.Click += UpdateButton_Click;
         changeVersionsButton.Click += ChangeVersionsButton_CLick;
+
+        UpdateUIVersion();
     }
 
     private void LoadSavedDirectory()
@@ -138,6 +140,8 @@ public partial class OuterForm : Form
             fileInstaller = new FileInstaller(gameDirectory, progress);
             CheckInstallation();
         }
+
+        UpdateUIVersion();
     }
 
     private async Task CheckInstallation()
@@ -183,11 +187,17 @@ public partial class OuterForm : Form
             releaseVersionLabel.Text = "Latest HM Release: " + currentTag;
         }
 
+        UpdateUIVersion();
+    }
+
+    private void UpdateUIVersion()
+    {
         if (fileInstaller.CheckDefualtArgsDLL())
         {
             VoHM.Text = "Using Heated Metal";
             settingsManager.SetUsingVanilla(false);
-        } else
+        }
+        else
         {
             VoHM.Text = "Using Vanilla";
             settingsManager.SetUsingVanilla(true);
@@ -270,6 +280,7 @@ public partial class OuterForm : Form
             browseButton.Enabled = true;
             changeVersionsButton.Enabled = true;
             progressBar.Value = 0;
+            UpdateUIVersion();
         }
     }
 
@@ -287,6 +298,7 @@ public partial class OuterForm : Form
         updateButton.Enabled = true;
         browseButton.Enabled = true;
         changeVersionsButton.Enabled = true;
+        UpdateUIVersion();
     }
 
     private async Task HandleLumaPlayReplacement()
@@ -332,6 +344,8 @@ public partial class OuterForm : Form
                 MessageBoxIcon.Error);
             throw;
         }
+
+        UpdateUIVersion();
     }
 
     private async Task<(string TagName, string DownloadUrl)> GetLatestReleaseInfo()
@@ -342,6 +356,8 @@ public partial class OuterForm : Form
         using var doc = JsonDocument.Parse(response);
         var root = doc.RootElement;
 
+        UpdateUIVersion();
+
         return (
             root.GetProperty("tag_name").GetString()!,
             root.GetProperty("assets")[0].GetProperty("browser_download_url").GetString()!
@@ -351,11 +367,13 @@ public partial class OuterForm : Form
     private string? GetLocalVersion()
     {
         var versionFile = Path.Combine(gameDirectory, VersionFile);
+        UpdateUIVersion();
         return File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : null;
     }
 
     private bool GetHMInstall()
     {
+        UpdateUIVersion();
         return fileInstaller.HasHeatedMetalInstalled();
     }
 
@@ -382,6 +400,8 @@ public partial class OuterForm : Form
                 progress.Value = progressPercent;
             }
         }
+
+        UpdateUIVersion();
     }
 
     private async Task ExtractUpdate(string archivePath)
