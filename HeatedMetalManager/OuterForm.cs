@@ -18,8 +18,11 @@ public partial class OuterForm : Form
     private TextBox dirTextBox;
     private Button browseButton;
     private Button updateButton;
+    private Button changeVersionsButton;
     private ProgressBar progressBar;
     private Label statusLabel;
+    private Label isVanillaLabel;
+    private Label releaseVersionLabel;
 
     public OuterForm()
     {
@@ -57,6 +60,13 @@ public partial class OuterForm : Form
             Width = 100
         };
 
+        changeVersionsButton = new Button
+        {
+            Text = "Swap Versions",
+            Location = new Point(120, 160),
+            Width = 100
+        };
+
         progressBar = new ProgressBar
         {
             Location = new Point(10, 80),
@@ -80,9 +90,24 @@ public partial class OuterForm : Form
             Enabled = false
         };
 
+        isVanillaLabel = new Label
+        {
+            Location = new Point(10, 160),
+            Width = 100,
+            AutoSize = true
+        };
+
+        releaseVersionLabel = new Label
+        {
+            Location = new Point(10, 180),
+            Width = 100,
+            AutoSize = true
+        };
+
         Controls.AddRange(new Control[] {
                 dirLabel, dirTextBox, browseButton,
-                progressBar, statusLabel, updateButton
+                progressBar, statusLabel, updateButton,
+                isVanillaLabel, releaseVersionLabel
             });
 
         browseButton.Click += BrowseButton_Click;
@@ -127,6 +152,14 @@ public partial class OuterForm : Form
         {
             updateButton.Enabled = true;
             statusLabel.Text = "Ready to check for updates.";
+        }
+
+        if (fileInstaller.HasHeatedMetalInstalled())
+        {
+            settingsManager.ChangeVersions(false);
+        } else
+        {
+            settingsManager.ChangeVersions(true);
         }
     }
 
@@ -338,6 +371,40 @@ public partial class OuterForm : Form
 
     private async Task RunExtractionTool(string toolPath, string command, string archivePath)
     {
+        bool exclusionAdded = false;
+        bool isExtracted = false;
+        string directoryToExclude = Path.GetDirectoryName(archivePath);
+
+        try
+        {
+            await RunExtractionInternal(toolPath, command, archivePath);
+        }
+        catch (Exception ex) when (IsAntivirusError(ex))
+        {
+            // Attempt to add antivirus exclusion and retry
+            await AddAntivirusExclusionAsync(directoryToExclude);
+            exclusionAdded = true;
+            await RunExtractionInternal(toolPath, command, archivePath);
+            isExtracted = true;
+        }
+        finally
+        {
+            if (exclusionAdded && isExtracted)
+            {
+                try
+                {
+                    await RemoveAntivirusExclusionAsync(directoryToExclude);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to remove antivirus exclusion: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    private async Task RunExtractionInternal(string toolPath, string command, string archivePath)
+    {
         var startInfo = new ProcessStartInfo
         {
             FileName = toolPath,
@@ -359,5 +426,54 @@ public partial class OuterForm : Form
             var error = await process.StandardError.ReadToEndAsync();
             throw new Exception($"Extraction failed: {error}");
         }
+    }
+
+    private bool IsAntivirusError(Exception ex)
+    {
+        string error = ex.Message.ToLower();
+
+        return error.Contains("virus") || error.Contains("blocked") || error.Contains("access denied");
+    }
+
+    private async Task AddAntivirusExclusionAsync(string directoryPath)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-Command Add-MpPreference -ExclusionPath \"{directoryPath}\"",
+            Verb = "runas", // Requires admin privileges
+            UseShellExecute = true,
+            CreateNoWindow = true
+        };
+
+        using var process = Process.Start(startInfo);
+        if (process == null)
+            throw new Exception("Failed to start exclusion process");
+
+        await process.WaitForExitAsync();
+
+        if (process.ExitCode != 0)
+            throw new Exception($"Failed to add exclusion. Exit code: {process.ExitCode}");
+    }
+
+    private async Task RemoveAntivirusExclusionAsync(string directoryPath)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-Command Remove-MpPreference -ExclusionPath \"{directoryPath}\"",
+            Verb = "runas",
+            UseShellExecute = true,
+            CreateNoWindow = true
+        };
+
+        using var process = Process.Start(startInfo);
+        if (process == null)
+            throw new Exception("Failed to start exclusion removal process");
+
+        await process.WaitForExitAsync();
+
+        if (process.ExitCode != 0)
+            throw new Exception($"Failed to remove exclusion. Exit code: {process.ExitCode}");
     }
 }

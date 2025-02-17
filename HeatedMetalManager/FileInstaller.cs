@@ -6,6 +6,7 @@ namespace HeatedMetalManager
     public class FileInstaller
     {
         private readonly string gameDirectory;
+        private readonly string assemblyDirectory;
         private readonly Assembly currentAssembly;
         private const string PlazaResourcePrefix = "HeatedMetalManager.Plazas.";
 
@@ -22,6 +23,7 @@ namespace HeatedMetalManager
         {
             this.gameDirectory = gameDirectory;
             this.currentAssembly = Assembly.GetExecutingAssembly();
+            this.assemblyDirectory = System.AppContext.BaseDirectory;
         }
 
         public bool HasLumaPlayFiles()

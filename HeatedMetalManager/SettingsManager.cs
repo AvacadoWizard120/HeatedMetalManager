@@ -6,6 +6,8 @@ namespace HeatedMetalManager
     public class UserSettings
     {
         public string? GameDirectory { get; set; }
+
+        public bool? IsVanilla { get; set; }
     }
 
     public class SettingsManager
@@ -60,6 +62,14 @@ namespace HeatedMetalManager
         public void SetGameDirectory(string directory)
         {
             currentSettings.GameDirectory = directory;
+            SaveSettings();
+        }
+
+        public bool? CheckIsVanilla() => currentSettings.IsVanilla;
+
+        public void ChangeVersions(bool isVanilla)
+        {
+            currentSettings.IsVanilla = isVanilla;
             SaveSettings();
         }
     }
