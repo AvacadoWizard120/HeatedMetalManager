@@ -67,7 +67,8 @@ public partial class OuterForm : Form
         {
             Text = "Swap Versions",
             Location = new Point(200, 200),
-            Width = 100
+            Width = 100,
+            Enabled = false
         };
 
         progressBar = new ProgressBar
@@ -226,6 +227,7 @@ public partial class OuterForm : Form
         {
             updateButton.Enabled = false;
             browseButton.Enabled = false;
+            changeVersionsButton.Enabled = false;
             progressBar.Value = 0;
 
             // Check versions
@@ -266,6 +268,7 @@ public partial class OuterForm : Form
         {
             updateButton.Enabled = true;
             browseButton.Enabled = true;
+            changeVersionsButton.Enabled = true;
             progressBar.Value = 0;
         }
     }
