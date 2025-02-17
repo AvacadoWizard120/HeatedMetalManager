@@ -192,7 +192,7 @@ public partial class OuterForm : Form
 
     private void UpdateUIVersion()
     {
-        if (fileInstaller.CheckDefualtArgsDLL())
+        if (fileInstaller.CheckDefaultArgsDLL())
         {
             VoHM.Text = "Using Heated Metal";
             settingsManager.SetUsingVanilla(false);

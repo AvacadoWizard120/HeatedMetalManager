@@ -221,7 +221,7 @@ namespace HeatedMetalManager
                 .Where(name => name.StartsWith(prefix));
         }
 
-        public bool CheckDefualtArgsDLL()
+        public bool CheckDefaultArgsDLL()
         {
             string HeatedMetalDLL = Path.Combine(gameDirectory, "DefaultArgs.dll");
             string ShadowLegacyDLL = Path.Combine(gameDirectory, "defaultargs.dll");
