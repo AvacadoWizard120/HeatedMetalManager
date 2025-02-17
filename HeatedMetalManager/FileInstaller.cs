@@ -128,5 +128,20 @@ namespace HeatedMetalManager
             return currentAssembly.GetManifestResourceNames()
                 .Where(name => name.StartsWith(prefix));
         }
+
+        public bool CheckDefualtArgsDLL()
+        {
+            string HeatedMetalDLL = Path.Combine(gameDirectory, "DefaultArgs.dll");
+            string ShadowLegacyDLL = Path.Combine(gameDirectory, "defaultargs.dll");
+
+            if (File.Exists(HeatedMetalDLL))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
     }
 }

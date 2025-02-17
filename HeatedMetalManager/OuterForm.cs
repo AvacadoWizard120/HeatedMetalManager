@@ -24,6 +24,8 @@ public partial class OuterForm : Form
     private Label isVanillaLabel;
     private Label releaseVersionLabel;
 
+    // Make sure to add a new label for If the default args is vanilla or Heated Metal
+
     public OuterForm()
     {
         InitializeComponent();
@@ -154,12 +156,18 @@ public partial class OuterForm : Form
             statusLabel.Text = "Ready to check for updates.";
         }
 
+        var (currentTag, downloadUrl) = await GetLatestReleaseInfo();
+
         if (fileInstaller.HasHeatedMetalInstalled())
         {
             settingsManager.ChangeVersions(false);
+            isVanillaLabel.Text = "Currently Installed: " + GetLocalVersion();
+            releaseVersionLabel.Text = "Latest Release: " + currentTag;
         } else
         {
             settingsManager.ChangeVersions(true);
+            isVanillaLabel.Text = "Vanilla";
+            releaseVersionLabel.Text = "Latest HM Release: " + currentTag;
         }
     }
 
