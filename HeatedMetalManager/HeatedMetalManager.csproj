@@ -25,8 +25,8 @@
 	  <EmbeddedResource Include="Plazas\**\*" />
   </ItemGroup>
 
-	<ItemGroup>
-		<EmbeddedResource Include="Shadow Legacy\**\*" />
-	</ItemGroup>
+  <ItemGroup>
+	  <EmbeddedResource Include="ShadowLegacy\**\*" />
+  </ItemGroup>
 
 </Project>

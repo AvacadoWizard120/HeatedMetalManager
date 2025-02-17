@@ -10,7 +10,7 @@ namespace HeatedMetalManager
         private readonly Assembly currentAssembly;
         private readonly IProgress<int>? progress;
         private const string PlazaResourcePrefix = "HeatedMetalManager.Plazas.";
-        private const string ShadowLegacyDLLPrefix = "Shadow Legacy.";
+        private const string ShadowLegacyDLLPrefix = "HeatedMetalManager.ShadowLegacy.";
 
         private static readonly string[] LumaPlayFiles = new[]
         {
