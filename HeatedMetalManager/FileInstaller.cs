@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Diagnostics.Eventing.Reader;
 using System.Reflection;
 
 namespace HeatedMetalManager
@@ -8,10 +7,9 @@ namespace HeatedMetalManager
     {
         private readonly string gameDirectory;
         private readonly string assemblyDirectory;
-        private readonly Assembly currentAssembly;
         private readonly IProgress<int>? progress;
+        private readonly Assembly currentAssembly;
         private const string PlazaResourcePrefix = "HeatedMetalManager.Plazas.";
-        private const string ShadowLegacyDLLPrefix = "HeatedMetalManager.ShadowLegacy.";
 
         private static readonly string[] LumaPlayFiles = new[]
         {
@@ -32,25 +30,23 @@ namespace HeatedMetalManager
 
         public bool HasLumaPlayFiles()
         {
-            string lumaPlayDir = Path.Combine(gameDirectory, "LumaPlayFiles");
-
-            // Check if any of the LumaPlay files exist in the game directory
-            if (Directory.Exists(lumaPlayDir))
-            {
-                return true;
-            }
-            else return false;
+            return Directory.Exists(Path.Combine(gameDirectory, "LumaPlayFiles"));
         }
 
         public bool HasHeatedMetalInstalled()
         {
-            string heatedMetalDir = Path.Combine(gameDirectory, "HeatedMetal");
+            return Directory.Exists(Path.Combine(gameDirectory, "HeatedMetal"));
+        }
 
-            if (Directory.Exists(heatedMetalDir))
-            {
-                return true;
-            }
-            else return false;
+        public bool IsUsingHeatedMetal()
+        {
+            string heatedMetalPath = Path.Combine(gameDirectory, "HeatedMetal", "HeatedMetal.dll");
+            string shadowLegacyPath = Path.Combine(gameDirectory, "HeatedMetal", "ShadowLegacy.dll");
+
+            if (File.Exists(heatedMetalPath)) return true;
+            if (File.Exists(shadowLegacyPath)) return false;
+
+            return false;
         }
 
         public void RemoveLumaPlayFiles()
@@ -123,83 +119,50 @@ namespace HeatedMetalManager
             }
         }
 
-        public async Task SwapDefaultArgs(bool isVanilla)
+        public async Task SwapGameVersion(bool useVanilla)
         {
+            Debug.WriteLine(useVanilla);
+
             await Task.Run(() =>
             {
                 try
                 {
                     progress?.Report(0);
-                    string backupDir = Path.Combine(assemblyDirectory, "Backups");
-                    Directory.CreateDirectory(backupDir);
+                    string heatedMetalDir = Path.Combine(gameDirectory, "HeatedMetal");
+                    string heatedMetalDllDir = Path.Combine(heatedMetalDir, "HeatedMetal.dll");
+                    string shadowLegacyDllDir = Path.Combine(heatedMetalDir, "ShadowLegacy.dll");
 
-                    if (!isVanilla)
+                    FileInfo shadowLegacyDLL = new FileInfo(shadowLegacyDllDir);
+
+                    FileInfo heatedMetalDLL = new FileInfo(heatedMetalDllDir);
+
+                    if (!Directory.Exists(heatedMetalDir))
                     {
-                        progress?.Report(25);
-                        string sourceFile = Path.Combine(gameDirectory, "DefaultArgs.dll");
-                        string destFile = Path.Combine(backupDir, "DefaultArgs.dll");
-
-                        if (!File.Exists(sourceFile))
-                        {
-                            throw new FileNotFoundException("DefaultArgs.dll not found in game directory.");
-                        }
-
-                        if (File.Exists(destFile))
-                        {
-                            File.Delete(destFile);
-                        }
-
-                        File.Move(sourceFile, destFile);
-                        progress?.Report(50);
-
-                        var vanillaResources = GetEmbeddedResourceNames(ShadowLegacyDLLPrefix).ToList();
-                        foreach (var resourceName in vanillaResources)
-                        {
-                            progress?.Report(75);
-                            var fileName = Path.GetFileName(resourceName.Substring(ShadowLegacyDLLPrefix.Length));
-                            var targetPath = Path.Combine(gameDirectory, fileName);
-
-                            using var resourceStream = currentAssembly.GetManifestResourceStream(resourceName);
-                            if (resourceStream == null)
-                            {
-                                throw new InvalidOperationException($"Failed to get resource stream for: {resourceName}");
-                            }
-
-                            using var fileStream = File.Create(targetPath);
-                            resourceStream.CopyTo(fileStream);
-                        }
+                        Debug.WriteLine("DID NOT FIND HEATED METAL DIRECTORY!");
+                        throw new DirectoryNotFoundException("HeatedMetal directory not found.");
                     }
-                    else
+
+                    progress?.Report(25);
+
+                    if (!useVanilla && File.Exists(heatedMetalDllDir))
                     {
-                        progress?.Report(25);
-                        string sourceFile = Path.Combine(backupDir, "DefaultArgs.dll");
-                        string destFile = Path.Combine(gameDirectory, "DefaultArgs.dll");
-
-                        if (!File.Exists(sourceFile))
-                        {
-                            throw new FileNotFoundException("Backup DefaultArgs.dll not found.");
-                        }
-
-                        if (File.Exists(Path.Combine(gameDirectory, "defaultargs.dll")))
-                        {
-                            File.Delete(Path.Combine(gameDirectory, "defaultargs.dll"));
-                        }
-
-                        if (File.Exists(destFile))
-                        {
-                            File.Delete(destFile);
-                        }
-
+                        Debug.WriteLine("FOUND HEATED METALL DLL!!");
+                        heatedMetalDLL.MoveTo(shadowLegacyDllDir);
                         progress?.Report(50);
-                        File.Move(sourceFile, destFile);
-                        progress?.Report(75);
+                    }
+                    else if (useVanilla && File.Exists(shadowLegacyDllDir))
+                    {
+                        Debug.WriteLine("FOUND VANILLA DLL!!");
+                        shadowLegacyDLL.MoveTo(heatedMetalDllDir);
+                        progress?.Report(50);
                     }
 
                     progress?.Report(100);
+                    Debug.WriteLine($"Successfully swapped game version. Using Vanilla: {useVanilla}");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Error in SwapDefaultArgs: {ex.Message}");
+                    Debug.WriteLine($"Error in SwapGameVersion: {ex.Message}");
                     throw;
                 }
             });

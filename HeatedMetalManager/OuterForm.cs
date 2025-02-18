@@ -31,6 +31,7 @@ public partial class OuterForm : Form
     public OuterForm()
     {
         InitializeComponent();
+        Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         httpClient.DefaultRequestHeaders.Add("User-Agent", "HeatedMetalManager");
         settingsManager = new SettingsManager();
         LoadSavedDirectory();
@@ -142,11 +143,12 @@ public partial class OuterForm : Form
             CheckInstallation();
         }
 
-        UpdateUIVersion();
+        UpdateAllStatus();
     }
 
     private async Task CheckInstallation()
     {
+        UpdateUIVersion();
         if (fileInstaller?.HasLumaPlayFiles() == true)
         {
             var result = MessageBox.Show(
@@ -162,6 +164,7 @@ public partial class OuterForm : Form
             }
 
             updateButton.Enabled = result == DialogResult.Yes;
+            UpdateUIVersion();
             if (!updateButton.Enabled)
             {
                 statusLabel.Text = "Please accept LumaPlay replacement to continue.";
@@ -169,6 +172,7 @@ public partial class OuterForm : Form
         }
         else
         {
+            UpdateUIVersion();
             updateButton.Enabled = true;
             changeVersionsButton.Enabled = true;
             statusLabel.Text = "Ready to check for updates.";
@@ -187,13 +191,11 @@ public partial class OuterForm : Form
             isVanillaLabel.Text = "Vanilla";
             releaseVersionLabel.Text = "Latest HM Release: " + currentTag;
         }
-
-        UpdateUIVersion();
     }
 
     private void UpdateUIVersion()
     {
-        if (fileInstaller.CheckDefaultArgsDLL())
+        if (fileInstaller?.IsUsingHeatedMetal() == true)
         {
             VoHM.Text = "Using Heated Metal";
             settingsManager.SetUsingVanilla(false);
@@ -205,7 +207,59 @@ public partial class OuterForm : Form
         }
     }
 
-    private void BrowseButton_Click(object? sender, EventArgs e)
+    private void UpdateAllStatus()
+    {
+        if (string.IsNullOrEmpty(gameDirectory) || !Directory.Exists(gameDirectory))
+        {
+            statusLabel.Text = "Please select a valid game directory.";
+            isVanillaLabel.Text = "Not installed";
+            releaseVersionLabel.Text = "No version information";
+            VoHM.Text = "No version detected";
+            updateButton.Enabled = false;
+            changeVersionsButton.Enabled = false;
+            return;
+        }
+
+        bool isHeatedMetalMode = fileInstaller?.IsUsingHeatedMetal() ?? false;
+        settingsManager.SetUsingVanilla(!isHeatedMetalMode);
+
+        VoHM.Text = isHeatedMetalMode ? "Using Heated Metal" : "Using Vanilla";
+
+        if (fileInstaller?.HasHeatedMetalInstalled() == true)
+        {
+            isVanillaLabel.Text = "Currently Installed: " + GetLocalVersion();
+            updateButton.Enabled = true;
+            changeVersionsButton.Enabled = true;
+            statusLabel.Text = "Ready to check for updates.";
+        }
+        else
+        {
+            isVanillaLabel.Text = "Heated Metal not installed";
+            updateButton.Enabled = true;
+            changeVersionsButton.Enabled = false;
+            statusLabel.Text = "Ready to install Heated Metal.";
+        }
+
+        // Update release version label asynchronously
+        UpdateReleaseVersionLabel();
+    }
+
+
+    private async void UpdateReleaseVersionLabel()
+    {
+        try
+        {
+            var (currentTag, _) = await GetLatestReleaseInfo();
+            releaseVersionLabel.Text = "Latest Release: " + currentTag;
+        }
+        catch (Exception ex)
+        {
+            releaseVersionLabel.Text = "Unable to fetch latest version";
+            Debug.WriteLine($"Error fetching release info: {ex.Message}");
+        }
+    }
+
+    private async void BrowseButton_Click(object? sender, EventArgs e)
     {
         using var dialog = new FolderBrowserDialog
         {
@@ -222,7 +276,8 @@ public partial class OuterForm : Form
                 settingsManager.SetGameDirectory(gameDirectory);
                 var progress = new Progress<int>(value => progressBar.Value = value);
                 fileInstaller = new FileInstaller(gameDirectory, progress);
-                CheckInstallation();
+                await CheckInstallation();
+                UpdateAllStatus();
             }
             else
             {
@@ -241,11 +296,10 @@ public partial class OuterForm : Form
             changeVersionsButton.Enabled = false;
             progressBar.Value = 0;
 
-            // Check versions
             statusLabel.Text = "Checking for updates...";
             var (currentTag, downloadUrl) = await GetLatestReleaseInfo();
             var localVersion = GetLocalVersion();
-            var isHeatedMetalInstalled = GetHMInstall();
+            var isHeatedMetalInstalled = fileInstaller?.HasHeatedMetalInstalled() ?? false;
 
             if (localVersion == currentTag && isHeatedMetalInstalled)
             {
@@ -253,17 +307,14 @@ public partial class OuterForm : Form
                 return;
             }
 
-            // Download update
             statusLabel.Text = "Downloading update...";
             var tempFile = Path.Combine(Path.GetTempPath(), ReleaseFile);
             await DownloadFileWithProgress(downloadUrl, tempFile, progressBar);
 
-            // Extract update
             statusLabel.Text = "Extracting update...";
             await ExtractUpdate(tempFile);
             File.WriteAllText(Path.Combine(gameDirectory, VersionFile), currentTag);
 
-            // Cleanup
             File.Delete(tempFile);
             statusLabel.Text = "Installation completed successfully!";
             MessageBox.Show("Installation completed successfully!", "Success",
@@ -281,7 +332,7 @@ public partial class OuterForm : Form
             browseButton.Enabled = true;
             changeVersionsButton.Enabled = true;
             progressBar.Value = 0;
-            UpdateUIVersion();
+            UpdateAllStatus();
         }
     }
 
@@ -290,16 +341,27 @@ public partial class OuterForm : Form
         updateButton.Enabled = false;
         browseButton.Enabled = false;
         changeVersionsButton.Enabled = false;
-        await fileInstaller.SwapDefaultArgs(settingsManager.UsingVanilla);
 
-        statusLabel.Text = "Changed versions successfully!";
-        MessageBox.Show("Changed versions successfully!", "Success",
-            MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-        updateButton.Enabled = true;
-        browseButton.Enabled = true;
-        changeVersionsButton.Enabled = true;
-        UpdateUIVersion();
+        try
+        {
+            await fileInstaller.SwapGameVersion(settingsManager.UsingVanilla);
+            statusLabel.Text = "Game version changed successfully!";
+            MessageBox.Show("Game version changed successfully!", "Success",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            statusLabel.Text = "Error changing game version.";
+            MessageBox.Show($"Error: {ex.Message}", "Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            updateButton.Enabled = true;
+            browseButton.Enabled = true;
+            changeVersionsButton.Enabled = true;
+            UpdateAllStatus();
+        }
     }
 
     private async Task HandleLumaPlayReplacement()
