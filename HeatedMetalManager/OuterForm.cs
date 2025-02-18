@@ -251,6 +251,11 @@ public partial class OuterForm : Form
         {
             var (currentTag, _) = await GetLatestReleaseInfo();
             releaseVersionLabel.Text = "Latest Release: " + currentTag;
+
+            if (currentTag == releaseVersionLabel.Text)
+            {
+                updateButton.Enabled = false;
+            }
         }
         catch (Exception ex)
         {
