@@ -33,6 +33,7 @@ public partial class OuterForm : Form
         httpClient.DefaultRequestHeaders.Add("User-Agent", "HeatedMetalManager");
         settingsManager = new SettingsManager();
         DisableAllControls();
+        CheckForManagerUpdateAsync(); // idgaf
         LoadSavedDirectoryAsync();
     }
 
@@ -141,6 +142,99 @@ public partial class OuterForm : Form
         statusLabel.Text = "Initializing...";
     }
 
+    private async Task<(string TagName, string DownloadUrl)> GetLatestManagerVersion()
+    {
+        var response = await httpClient.GetStringAsync($"https://api.github.com/repos/AvacadoWizard120/HeatedMetalManager/releases/latest");
+
+        using var doc = JsonDocument.Parse(response);
+        var root = doc.RootElement;
+
+        var assets = root.GetProperty("assets");
+        var managerAsset = assets.EnumerateArray()
+            .FirstOrDefault(asset => asset.GetProperty("name").GetString() == "HeatedMetalManager.exe");
+
+        if (managerAsset.ValueKind == JsonValueKind.Undefined)
+        {
+            throw new Exception("Manager update file not found in release");
+        }
+
+        return (
+            root.GetProperty("tag_name").GetString()!,
+            managerAsset.GetProperty("browser_download_url").GetString()!
+        );
+    }
+
+    private bool IsNewerVersion(string latestVersion, string currentVersion)
+    {
+        latestVersion = latestVersion.TrimStart('v');
+        currentVersion = currentVersion.TrimStart('v');
+
+        Version latest = Version.Parse(latestVersion);
+        Version current = Version.Parse(currentVersion);
+
+        return latest > current;
+    }
+
+    private async Task UpdateManager(string downloadUrl)
+    {
+        try
+        {
+            statusLabel.Text = "Downloading update...";
+            progressBar.Value = 0;
+
+            // Download to a temporary file
+            var tempFile = Path.Combine(Path.GetTempPath(), "HeatedMetalManager.exe");
+            await DownloadFileWithProgress(downloadUrl, tempFile, progressBar);
+
+            // Create batch file for updating
+            string batchPath = Path.Combine(Path.GetTempPath(), "update.bat");
+            string exePath = Application.ExecutablePath;
+            string updateScript = $@"@echo off timeout /t 1 /nobreak >nul move /y ""{tempFile}"" ""{exePath}""start """" ""{exePath}""del ""%~f0""";
+            File.WriteAllText(batchPath, updateScript);
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = batchPath,
+                CreateNoWindow = true,
+                UseShellExecute = false
+            });
+
+            Application.Exit();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error during update: {ex.Message}",
+                "Update Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private async Task CheckForManagerUpdateAsync()
+    {
+        try
+        {
+            var (latestTag, downloadUrl) = await GetLatestManagerVersion();
+            if (IsNewerVersion(latestTag, "0.3"))
+            {
+                var result = MessageBox.Show(
+                    $"A new version of Heated Metal Manager ({latestTag}) is available. Would you like to update?",
+                    "Update Available",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Information
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    await UpdateManager(downloadUrl);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error checking for manager updates: {ex.Message}",
+                "Update Check Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
     private async void LoadSavedDirectoryAsync()
     {
         try
@@ -154,7 +248,6 @@ public partial class OuterForm : Form
                 var progress = new Progress<int>(value => progressBar.Value = value);
                 fileInstaller = new FileInstaller(gameDirectory, progress);
 
-                // Initialize everything as if the browse button was clicked
                 await InitializeGameDirectory();
             }
             else
@@ -177,7 +270,6 @@ public partial class OuterForm : Form
     {
         try
         {
-            // Disable controls during initialization
             DisableAllControls();
 
             // Check for LumaPlay installation
@@ -207,7 +299,6 @@ public partial class OuterForm : Form
             var localVersion = GetLocalVersion();
             var isHeatedMetalInstalled = fileInstaller?.HasHeatedMetalInstalled() ?? false;
 
-            // Update UI elements
             UpdateUIVersion();
 
             if (isHeatedMetalInstalled)
@@ -231,7 +322,6 @@ public partial class OuterForm : Form
                 statusLabel.Text = "Ready to install Heated Metal.";
             }
 
-            // Re-enable browse button
             browseButton.Enabled = true;
         }
         catch (Exception ex)
