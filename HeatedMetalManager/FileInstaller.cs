@@ -10,14 +10,13 @@ namespace HeatedMetalManager
         private readonly IProgress<int>? progress;
         private readonly Assembly currentAssembly;
         private const string PlazaResourcePrefix = "HeatedMetalManager.Plazas.";
+        private const string HeliosResourcePrefix = "HeatedMetalManager.Helios.";
 
         private static readonly string[] LumaPlayFiles = new[]
         {
             "cream_api.ini",
             "HOWTOUSE.txt",
             "LumaPlay_x64.exe",
-            "steam_api64.dll",
-            "steam_api64_o.dll"
         };
 
         public FileInstaller(string gameDirectory, IProgress<int>? progress = null)
@@ -82,6 +81,58 @@ namespace HeatedMetalManager
             int completedFiles = 0;
 
             foreach (var resourceName in plazaResources)
+            {
+                try
+                {
+                    var fileName = Path.GetFileName(resourceName.Substring(PlazaResourcePrefix.Length));
+                    var targetPath = Path.Combine(gameDirectory, fileName);
+                    Debug.WriteLine($"Installing: {fileName} to {targetPath}");
+
+                    if (File.Exists(targetPath))
+                    {
+                        var backupPath = targetPath + ".backup";
+                        Debug.WriteLine($"Creating backup at: {backupPath}");
+                        File.Copy(targetPath, backupPath, overwrite: true);
+                    }
+
+                    using var resourceStream = currentAssembly.GetManifestResourceStream(resourceName);
+                    if (resourceStream == null)
+                    {
+                        Debug.WriteLine($"Failed to get resource stream for: {resourceName}");
+                        continue;
+                    }
+
+                    using var fileStream = File.Create(targetPath);
+                    resourceStream.CopyTo(fileStream);
+
+                    completedFiles++;
+                    int progressPercentage = (completedFiles * 100) / totalFiles;
+                    progress?.Report(progressPercentage);
+                    Debug.WriteLine($"Successfully installed: {fileName}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error installing {resourceName}: {ex.Message}");
+                    throw;
+                }
+            }
+
+            installHeliosFiles();
+        }
+
+        public void installHeliosFiles()
+        {
+            var heliosResources = GetEmbeddedResourceNames(HeliosResourcePrefix).ToList();
+            if (heliosResources.Count == 0)
+            {
+                Debug.WriteLine("No Plaza resources found!");
+                return;
+            }
+
+            int totalFiles = heliosResources.Count;
+            int completedFiles = 0;
+
+            foreach (var resourceName in heliosResources)
             {
                 try
                 {

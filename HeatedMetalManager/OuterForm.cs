@@ -26,8 +26,6 @@ public partial class OuterForm : Form
     private Label releaseVersionLabel;
     private Label VoHM;
 
-    // Make sure to add a new label for If the default args is vanilla or Heated Metal
-
     public OuterForm()
     {
         InitializeComponent();
