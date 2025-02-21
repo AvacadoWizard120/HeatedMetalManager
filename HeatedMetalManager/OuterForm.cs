@@ -32,7 +32,8 @@ public partial class OuterForm : Form
         Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         httpClient.DefaultRequestHeaders.Add("User-Agent", "HeatedMetalManager");
         settingsManager = new SettingsManager();
-        LoadSavedDirectory();
+        DisableAllControls();
+        LoadSavedDirectoryAsync();
     }
 
     private void InitializeComponent()
@@ -131,17 +132,115 @@ public partial class OuterForm : Form
         fileInstaller = new FileInstaller(gameDirectory, progress);
     }
 
-    private void LoadSavedDirectory()
+    private void DisableAllControls()
     {
-        var savedDirectory = settingsManager.GetGameDirectory();
-        if (!string.IsNullOrEmpty(savedDirectory) && Directory.Exists(savedDirectory))
-        {
-            gameDirectory = savedDirectory;
-            dirTextBox.Text = gameDirectory;
-            CheckInstallation();
-        }
+        updateButton.Enabled = false;
+        browseButton.Enabled = false;
+        changeVersionsButton.Enabled = false;
+        progressBar.Value = 0;
+        statusLabel.Text = "Initializing...";
+    }
 
-        UpdateAllStatus();
+    private async void LoadSavedDirectoryAsync()
+    {
+        try
+        {
+            var savedDirectory = settingsManager.GetGameDirectory();
+            if (!string.IsNullOrEmpty(savedDirectory) && Directory.Exists(savedDirectory))
+            {
+                gameDirectory = savedDirectory;
+                dirTextBox.Text = gameDirectory;
+
+                var progress = new Progress<int>(value => progressBar.Value = value);
+                fileInstaller = new FileInstaller(gameDirectory, progress);
+
+                // Initialize everything as if the browse button was clicked
+                await InitializeGameDirectory();
+            }
+            else
+            {
+                browseButton.Enabled = true;
+                statusLabel.Text = "Please select a valid game directory.";
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error loading saved directory: {ex.Message}",
+                "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            browseButton.Enabled = true;
+            statusLabel.Text = "Please select a valid game directory.";
+        }
+    }
+
+
+    private async Task InitializeGameDirectory()
+    {
+        try
+        {
+            // Disable controls during initialization
+            DisableAllControls();
+
+            // Check for LumaPlay installation
+            if (fileInstaller?.HasLumaPlayFiles() == true)
+            {
+                var result = MessageBox.Show(
+                    "LumaPlay is installed in your game directory. Would you like to replace it with the new files?",
+                    "LumaPlay Detected",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    await HandleLumaPlayReplacement();
+                }
+                else
+                {
+                    statusLabel.Text = "Please accept LumaPlay replacement to continue.";
+                    browseButton.Enabled = true;
+                    return;
+                }
+            }
+
+            // Get latest release info
+            var (currentTag, downloadUrl) = await GetLatestReleaseInfo();
+            var localVersion = GetLocalVersion();
+            var isHeatedMetalInstalled = fileInstaller?.HasHeatedMetalInstalled() ?? false;
+
+            // Update UI elements
+            UpdateUIVersion();
+
+            if (isHeatedMetalInstalled)
+            {
+                isVanillaLabel.Text = "Currently Installed: " + localVersion;
+                releaseVersionLabel.Text = "Latest Release: " + currentTag;
+
+                // Enable or disable update button based on version comparison
+                updateButton.Enabled = localVersion != currentTag;
+                changeVersionsButton.Enabled = true;
+                statusLabel.Text = localVersion == currentTag ?
+                    "Already up to date!" :
+                    "Updates available. Click 'Check for Updates/Install' to update.";
+            }
+            else
+            {
+                isVanillaLabel.Text = "Vanilla";
+                releaseVersionLabel.Text = "Latest HM Release: " + currentTag;
+                updateButton.Enabled = true;
+                changeVersionsButton.Enabled = false;
+                statusLabel.Text = "Ready to install Heated Metal.";
+            }
+
+            // Re-enable browse button
+            browseButton.Enabled = true;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error initializing game directory: {ex.Message}",
+                "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            browseButton.Enabled = true;
+            statusLabel.Text = "Error during initialization. Please try again.";
+        }
     }
 
     private async Task CheckInstallation()
@@ -277,10 +376,11 @@ public partial class OuterForm : Form
                 gameDirectory = dialog.SelectedPath;
                 dirTextBox.Text = gameDirectory;
                 settingsManager.SetGameDirectory(gameDirectory);
+
                 var progress = new Progress<int>(value => progressBar.Value = value);
                 fileInstaller = new FileInstaller(gameDirectory, progress);
-                await CheckInstallation();
-                UpdateAllStatus();
+
+                await InitializeGameDirectory();
             }
             else
             {
