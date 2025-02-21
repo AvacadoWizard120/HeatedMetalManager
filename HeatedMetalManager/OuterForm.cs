@@ -243,53 +243,6 @@ public partial class OuterForm : Form
         }
     }
 
-    private async Task CheckInstallation()
-    {
-        UpdateUIVersion();
-        if (fileInstaller?.HasLumaPlayFiles() == true)
-        {
-            var result = MessageBox.Show(
-                "LumaPlay is installed in your game directory. Would you like to replace it with the new files?",
-                "LumaPlay Detected",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning
-            );
-
-            if (result == DialogResult.Yes)
-            {
-                await HandleLumaPlayReplacement();
-            }
-
-            updateButton.Enabled = result == DialogResult.Yes;
-            UpdateUIVersion();
-            if (!updateButton.Enabled)
-            {
-                statusLabel.Text = "Please accept LumaPlay replacement to continue.";
-            }
-        }
-        else
-        {
-            UpdateUIVersion();
-            updateButton.Enabled = true;
-            changeVersionsButton.Enabled = true;
-            statusLabel.Text = "Ready to check for updates.";
-        }
-
-        var (currentTag, downloadUrl) = await GetLatestReleaseInfo();
-
-        if (fileInstaller.HasHeatedMetalInstalled())
-        {
-            settingsManager.ChangeVersions(false);
-            isVanillaLabel.Text = "Currently Installed: " + GetLocalVersion();
-            releaseVersionLabel.Text = "Latest Release: " + currentTag;
-        } else
-        {
-            settingsManager.ChangeVersions(true);
-            isVanillaLabel.Text = "Vanilla";
-            releaseVersionLabel.Text = "Latest HM Release: " + currentTag;
-        }
-    }
-
     private void UpdateUIVersion()
     {
         if (fileInstaller?.IsUsingHeatedMetal() == true)
