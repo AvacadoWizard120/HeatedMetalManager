@@ -1,5 +1,6 @@
 ﻿using HeatedMetalManager;
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -166,13 +167,20 @@ public partial class OuterForm : Form
 
     private bool IsNewerVersion(string latestVersion, string currentVersion)
     {
-        latestVersion = latestVersion.TrimStart('v');
-        currentVersion = currentVersion.TrimStart('v');
+        try
+        {
+            latestVersion = latestVersion.Trim().TrimStart('v', 'V', ' ');
+            currentVersion = currentVersion.Trim().TrimStart('v', 'V', ' ');
 
-        Version latest = Version.Parse(latestVersion);
-        Version current = Version.Parse(currentVersion);
+            var latest = Version.Parse(latestVersion);
+            var current = Version.Parse(currentVersion);
 
-        return latest > current;
+            return latest > current;
+        }
+        catch
+        {
+            return !latestVersion.Equals(currentVersion, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     private async Task UpdateManager(string downloadUrl)
@@ -349,6 +357,14 @@ public partial class OuterForm : Form
 
     private void UpdateAllStatus()
     {
+        var localVersion = GetLocalVersion();
+
+        if (string.IsNullOrEmpty(localVersion))
+        {
+            statusLabel.Text = "Version check failed! Game files may be modified.";
+            return;
+        }
+
         if (string.IsNullOrEmpty(gameDirectory) || !Directory.Exists(gameDirectory))
         {
             statusLabel.Text = "Please select a valid game directory.";
@@ -575,21 +591,32 @@ public partial class OuterForm : Form
     private string? GetLocalVersion()
     {
         string dllPath = Path.Combine(gameDirectory, "HeatedMetal", "HeatedMetal.dll");
-        if (!File.Exists(dllPath)) return null;
-
-        IntPtr dllHandle = NativeMethods.LoadLibrary(dllPath);
-        if (dllHandle == IntPtr.Zero)
-        {
-            Debug.WriteLine($"Failed to load DLL. Error: {Marshal.GetLastWin32Error()}");
-            return null;
-        }
+        string tempDll = Path.Combine(Path.GetTempPath(), "HeatedMetal_temp.dll");
+        IntPtr dllHandle = IntPtr.Zero;
 
         try
         {
+            if (!File.Exists(dllPath))
+            {
+                Debug.WriteLine("HeatedMetal.dll not found!");
+                return null;
+            }
+
+            // Create temporary copy to avoid file locks -- thanks ai :)
+            File.Copy(dllPath, tempDll, overwrite: true);
+
+            dllHandle = NativeMethods.LoadLibrary(tempDll);
+            if (dllHandle == IntPtr.Zero)
+            {
+                int error = Marshal.GetLastWin32Error();
+                Debug.WriteLine($"Failed to load DLL (Error {error}: {new Win32Exception(error).Message})");
+                return null;
+            }
+
             IntPtr versionFuncPtr = NativeMethods.GetProcAddress(dllHandle, "HWversion");
             if (versionFuncPtr == IntPtr.Zero)
             {
-                Debug.WriteLine("HWversion export not found.");
+                Debug.WriteLine("HWversion export not found in DLL");
                 return null;
             }
 
@@ -598,19 +625,30 @@ public partial class OuterForm : Form
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error retrieving version: {ex.Message}");
+            Debug.WriteLine($"Version check error: {ex.Message}");
             return null;
         }
         finally
         {
-            NativeMethods.FreeLibrary(dllHandle);
-        }
-    }
+            if (dllHandle != IntPtr.Zero)
+            {
+                NativeMethods.FreeLibrary(dllHandle);
+                Debug.WriteLine("DLL handle released");
+            }
 
-    private bool GetHMInstall()
-    {
-        UpdateUIVersion();
-        return fileInstaller.HasHeatedMetalInstalled();
+            if (File.Exists(tempDll))
+            {
+                try
+                {
+                    File.Delete(tempDll);
+                    Debug.WriteLine("Temporary DLL cleaned up");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Temp file cleanup failed: {ex.Message}");
+                }
+            }
+        }
     }
 
     private async Task DownloadFileWithProgress(string url, string destination, ProgressBar progress)
