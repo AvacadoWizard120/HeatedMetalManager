@@ -1,6 +1,7 @@
 ﻿using HeatedMetalManager;
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 public partial class OuterForm : Form
@@ -8,7 +9,6 @@ public partial class OuterForm : Form
     private const string RepoOwner = "DataCluster0";
     private const string RepoName = "HeatedMetal";
     private const string ReleaseFile = "HeatedMetal.7z";
-    private const string VersionFile = "version.txt";
     private const string GameExe = "RainbowSix.exe";
 
     private readonly HttpClient httpClient = new();
@@ -459,7 +459,6 @@ public partial class OuterForm : Form
 
             statusLabel.Text = "Extracting update...";
             await ExtractUpdate(tempFile);
-            File.WriteAllText(Path.Combine(gameDirectory, VersionFile), currentTag);
 
             File.Delete(tempFile);
             statusLabel.Text = "Installation completed successfully!";
@@ -575,9 +574,37 @@ public partial class OuterForm : Form
 
     private string? GetLocalVersion()
     {
-        var versionFile = Path.Combine(gameDirectory, VersionFile);
-        UpdateUIVersion();
-        return File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : null;
+        string dllPath = Path.Combine(gameDirectory, "HeatedMetal", "HeatedMetal.dll");
+        if (!File.Exists(dllPath)) return null;
+
+        IntPtr dllHandle = NativeMethods.LoadLibrary(dllPath);
+        if (dllHandle == IntPtr.Zero)
+        {
+            Debug.WriteLine($"Failed to load DLL. Error: {Marshal.GetLastWin32Error()}");
+            return null;
+        }
+
+        try
+        {
+            IntPtr versionFuncPtr = NativeMethods.GetProcAddress(dllHandle, "HWversion");
+            if (versionFuncPtr == IntPtr.Zero)
+            {
+                Debug.WriteLine("HWversion export not found.");
+                return null;
+            }
+
+            var versionFunc = Marshal.GetDelegateForFunctionPointer<NativeMethods.HWversionDelegate>(versionFuncPtr);
+            return versionFunc();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error retrieving version: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            NativeMethods.FreeLibrary(dllHandle);
+        }
     }
 
     private bool GetHMInstall()
