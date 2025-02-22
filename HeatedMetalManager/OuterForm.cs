@@ -2,7 +2,6 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 
 public partial class OuterForm : Form
@@ -10,6 +9,7 @@ public partial class OuterForm : Form
     private const string RepoOwner = "DataCluster0";
     private const string RepoName = "HeatedMetal";
     private const string ReleaseFile = "HeatedMetal.7z";
+    private const string VersionFile = "version.txt";
     private const string GameExe = "RainbowSix.exe";
 
     private readonly HttpClient httpClient = new();
@@ -475,6 +475,7 @@ public partial class OuterForm : Form
 
             statusLabel.Text = "Extracting update...";
             await ExtractUpdate(tempFile);
+            File.WriteAllText(Path.Combine(gameDirectory, VersionFile), currentTag);
 
             File.Delete(tempFile);
             statusLabel.Text = "Installation completed successfully!";
@@ -590,51 +591,10 @@ public partial class OuterForm : Form
 
     private string? GetLocalVersion()
     {
-        string dllPath = Path.Combine(gameDirectory, "HeatedMetal", "HeatedMetal.dll");
-        string tempDll = Path.Combine(Path.GetTempPath(), "HeatedMetal_temp.dll");
-        IntPtr dllHandle = IntPtr.Zero;
-
-        try
-        {
-            if (!File.Exists(dllPath))
-            {
-                Debug.WriteLine("HeatedMetal.dll not found!");
-                return null;
-            }
-
-            // Create temporary copy to avoid file locks -- thanks ai :)
-            File.Copy(dllPath, tempDll, overwrite: true);
-
-            dllHandle = NativeMethods.LoadLibrary(tempDll);
-            if (dllHandle == IntPtr.Zero)
-            {
-                int error = Marshal.GetLastWin32Error();
-                Debug.WriteLine($"Failed to load DLL (Error {error}: {new Win32Exception(error).Message})");
-                return null;
-            }
-
-            IntPtr versionFuncPtr = NativeMethods.GetProcAddress(dllHandle, "HWversion");
-            if (versionFuncPtr == IntPtr.Zero)
-            {
-                Debug.WriteLine("HWversion export not found in DLL");
-                return null;
-            }
-
-            var versionFunc = Marshal.GetDelegateForFunctionPointer<NativeMethods.HWversionDelegate>(versionFuncPtr);
-            return versionFunc();
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Version check error: {ex.Message}");
-            return null;
-        }
-        finally
-        {
-            if (dllHandle != IntPtr.Zero)
-            {
-                NativeMethods.FreeLibrary(dllHandle);
-                Debug.WriteLine("DLL handle released");
-            }
+        var versionFile = Path.Combine(gameDirectory, VersionFile);
+        UpdateUIVersion();
+        return File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : null;
+    }
 
             if (File.Exists(tempDll))
             {
