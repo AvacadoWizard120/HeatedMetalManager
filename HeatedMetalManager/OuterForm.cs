@@ -132,7 +132,7 @@ public partial class OuterForm : Form
 
         var progress = new Progress<int>(value => progressBar.Value = value);
 
-        fileInstaller = new FileInstaller(gameDirectory, progress);
+        fileInstaller = new FileInstaller(gameDirectory, httpClient, progress);
     }
 
     private void DisableAllControls()
@@ -221,7 +221,7 @@ del ""%~f0""
         try
         {
             var (latestTag, downloadUrl) = await GetLatestManagerVersion();
-            if (IsNewerVersion(latestTag, "0.4.1"))
+            if (IsNewerVersion(latestTag, "0.5"))
             {
                 var result = MessageBox.Show(
                     $"A new version of Heated Metal Manager ({latestTag}) is available. Would you like to update?",
@@ -254,7 +254,7 @@ del ""%~f0""
                 dirTextBox.Text = gameDirectory;
 
                 var progress = new Progress<int>(value => progressBar.Value = value);
-                fileInstaller = new FileInstaller(gameDirectory, progress);
+                fileInstaller = new FileInstaller(gameDirectory, httpClient, progress);
 
                 await InitializeGameDirectory();
             }
@@ -429,7 +429,7 @@ del ""%~f0""
                 settingsManager.SetGameDirectory(gameDirectory);
 
                 var progress = new Progress<int>(value => progressBar.Value = value);
-                fileInstaller = new FileInstaller(gameDirectory, progress);
+                fileInstaller = new FileInstaller(gameDirectory, httpClient, progress);
 
                 await InitializeGameDirectory();
             }
@@ -535,19 +535,8 @@ del ""%~f0""
             );
 
             statusLabel.Text = "Installing new files...";
-            var resourceCount = fileInstaller.GetPlazaResourceCount();
-            if (resourceCount == 0)
-            {
-                MessageBox.Show(
-                    "No Plaza files found in the application resources. Please ensure the Plaza files are properly embedded in the application.",
-                    "Installation Warning",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error
-                );
-                return;
-            }
 
-            fileInstaller.InstallPlazaFiles();
+            await fileInstaller.InstallPlazaFiles();
             progressBar.Value = 100;
             statusLabel.Text = "Installation completed.";
         }

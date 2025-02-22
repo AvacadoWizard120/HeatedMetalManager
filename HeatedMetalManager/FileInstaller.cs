@@ -10,8 +10,11 @@ namespace HeatedMetalManager
         private readonly string assemblyDirectory;
         private readonly IProgress<int>? progress;
         private readonly Assembly currentAssembly;
-        private const string PlazaResourcePrefix = "HeatedMetalManager.Plazas.";
-        private const string HeliosResourcePrefix = "HeatedMetalManager.Helios.";
+
+        private readonly HttpClient httpClient;
+
+        private readonly string PlazaDownloadUrl = "https://github.com/AvacadoWizard120/HeatedMetalManager/raw/master/Plazas.rar";
+        private readonly string HeliosDownloadUrl = "https://github.com/AvacadoWizard120/HeatedMetalManager/raw/master/Helios.rar";
 
         private static readonly string[] LumaPlayFiles = new[]
         {
@@ -20,12 +23,13 @@ namespace HeatedMetalManager
             "LumaPlay_x64.exe",
         };
 
-        public FileInstaller(string gameDirectory, IProgress<int>? progress = null)
+        public FileInstaller(string gameDirectory, HttpClient httpClient, IProgress<int>? progress = null)
         {
             this.gameDirectory = gameDirectory;
             this.progress = progress;
             this.currentAssembly = Assembly.GetExecutingAssembly();
             this.assemblyDirectory = System.AppContext.BaseDirectory;
+            this.httpClient = httpClient;
         }
 
         public string GetHeatedMetalDLLDir()
@@ -127,107 +131,115 @@ namespace HeatedMetalManager
             }
         }
 
-        public void InstallPlazaFiles()
+        public async Task InstallPlazaFiles()
         {
-            var plazaResources = GetEmbeddedResourceNames(PlazaResourcePrefix).ToList();
-            if (plazaResources.Count == 0)
-            {
-                Debug.WriteLine("No Plaza resources found!");
-                return;
-            }
+            await DownloadAndInstallPackage(PlazaDownloadUrl, "Plazas");
+            await InstallHeliosFiles();
 
-            int totalFiles = plazaResources.Count;
-            int completedFiles = 0;
-
-            foreach (var resourceName in plazaResources)
-            {
-                try
-                {
-                    var fileName = Path.GetFileName(resourceName.Substring(PlazaResourcePrefix.Length));
-                    var targetPath = Path.Combine(gameDirectory, fileName);
-                    Debug.WriteLine($"Installing: {fileName} to {targetPath}");
-
-                    if (File.Exists(targetPath))
-                    {
-                        var backupPath = targetPath + ".backup";
-                        Debug.WriteLine($"Creating backup at: {backupPath}");
-                        File.Copy(targetPath, backupPath, overwrite: true);
-                    }
-
-                    using var resourceStream = currentAssembly.GetManifestResourceStream(resourceName);
-                    if (resourceStream == null)
-                    {
-                        Debug.WriteLine($"Failed to get resource stream for: {resourceName}");
-                        continue;
-                    }
-
-                    using var fileStream = File.Create(targetPath);
-                    resourceStream.CopyTo(fileStream);
-
-                    completedFiles++;
-                    int progressPercentage = (completedFiles * 100) / totalFiles;
-                    progress?.Report(progressPercentage);
-                    Debug.WriteLine($"Successfully installed: {fileName}");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error installing {resourceName}: {ex.Message}");
-                    throw;
-                }
-            }
-
-            installHeliosFiles();
         }
 
-        public void installHeliosFiles()
+        public async Task InstallHeliosFiles()
         {
-            var heliosResources = GetEmbeddedResourceNames(HeliosResourcePrefix).ToList();
-            if (heliosResources.Count == 0)
+            await DownloadAndInstallPackage(HeliosDownloadUrl, "Helios");
+        }
+
+        private async Task DownloadAndInstallPackage(string downloadUrl, string packageName)
+        {
+            try
             {
-                Debug.WriteLine("No Plaza resources found!");
-                return;
+                var tempPath = Path.GetTempFileName();
+
+                // Download the package
+                progress?.Report(0);
+                await DownloadFileWithProgress(downloadUrl, tempPath);
+
+                // Extract the package
+                progress?.Report(50);
+                await ExtractPackage(tempPath, packageName);
+                progress?.Report(100);
+
+                File.Delete(tempPath);
             }
-
-            int totalFiles = heliosResources.Count;
-            int completedFiles = 0;
-
-            foreach (var resourceName in heliosResources)
+            catch (Exception ex)
             {
-                try
+                Debug.WriteLine($"Error installing {packageName}: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task DownloadFileWithProgress(string url, string destination)
+        {
+            using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var fileStream = File.Create(destination);
+
+            var buffer = new byte[8192];
+            var totalBytesRead = 0L;
+            int bytesRead;
+
+            while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
+            {
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                totalBytesRead += bytesRead;
+
+                if (totalBytes > 0)
                 {
-                    var fileName = Path.GetFileName(resourceName.Substring(PlazaResourcePrefix.Length));
-                    var targetPath = Path.Combine(gameDirectory, fileName);
-                    Debug.WriteLine($"Installing: {fileName} to {targetPath}");
-
-                    if (File.Exists(targetPath))
-                    {
-                        var backupPath = targetPath + ".backup";
-                        Debug.WriteLine($"Creating backup at: {backupPath}");
-                        File.Copy(targetPath, backupPath, overwrite: true);
-                    }
-
-                    using var resourceStream = currentAssembly.GetManifestResourceStream(resourceName);
-                    if (resourceStream == null)
-                    {
-                        Debug.WriteLine($"Failed to get resource stream for: {resourceName}");
-                        continue;
-                    }
-
-                    using var fileStream = File.Create(targetPath);
-                    resourceStream.CopyTo(fileStream);
-
-                    completedFiles++;
-                    int progressPercentage = (completedFiles * 100) / totalFiles;
-                    progress?.Report(progressPercentage);
-                    Debug.WriteLine($"Successfully installed: {fileName}");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error installing {resourceName}: {ex.Message}");
-                    throw;
+                    var progressPercent = (int)((totalBytesRead * 50) / totalBytes); // First half for download
+                    progress?.Report(progressPercent);
                 }
             }
         }
+
+        private async Task ExtractPackage(string archivePath, string packageName)
+        {
+            var extractPath = Path.Combine(gameDirectory, packageName);
+            Directory.CreateDirectory(extractPath);
+
+            var sevenZipPaths = new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "7-Zip", "7z.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "7-Zip", "7z.exe")
+            };
+
+            foreach (var path in sevenZipPaths)
+            {
+                if (File.Exists(path))
+                {
+                    await RunExtractionTool(path, "x", archivePath, extractPath);
+                    return;
+                }
+            }
+
+            throw new Exception("7-Zip not found. Required for extraction.");
+        }
+
+        private async Task RunExtractionTool(string toolPath, string command, string archivePath, string outputPath)
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = toolPath,
+                Arguments = $"{command} \"{archivePath}\" -o\"{outputPath}\" -y",
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(startInfo);
+            if (process == null) throw new Exception("Failed to start extraction process");
+
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0)
+            {
+                var error = await process.StandardError.ReadToEndAsync();
+                throw new Exception($"Extraction failed: {error}");
+            }
+        }
+
+
+
 
         public async Task SwapGameVersion(bool useVanilla)
         {
@@ -276,23 +288,6 @@ namespace HeatedMetalManager
                     throw;
                 }
             });
-        }
-
-        public int GetPlazaResourceCount()
-        {
-            var resources = GetEmbeddedResourceNames(PlazaResourcePrefix).ToList();
-            Debug.WriteLine($"Found {resources.Count} Plaza resources:");
-            foreach (var resource in resources)
-            {
-                Debug.WriteLine($"Resource: {resource}");
-            }
-            return resources.Count;
-        }
-
-        private IEnumerable<string> GetEmbeddedResourceNames(string prefix)
-        {
-            return currentAssembly.GetManifestResourceNames()
-                .Where(name => name.StartsWith(prefix));
         }
     }
 }

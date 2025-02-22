@@ -21,8 +21,4 @@
     <Content Include="HMUpdater.ico" />
   </ItemGroup>
 
-  <ItemGroup>
-	  <EmbeddedResource Include="Helios\**\*" />
-  </ItemGroup>
-
 </Project>
