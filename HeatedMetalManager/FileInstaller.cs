@@ -30,6 +30,15 @@ namespace HeatedMetalManager
 
         public string GetHeatedMetalDLLDir()
         {
+            string usingVanillaDLL = Path.Combine(gameDirectory, "HeatedMetal", "ShadowLegacy.dll");
+            string usingHMDLL = Path.Combine(gameDirectory, "HeatedMetal", "ShadowLegacy.dll");
+
+            if (File.Exists(usingVanillaDLL))
+            {
+                Debug.WriteLine("FOUND SHADOWLEGACY.DLL!!");
+                return (usingVanillaDLL);
+            }
+
             return Path.Combine(gameDirectory, "HeatedMetal", "HeatedMetal.dll");
         }
 
@@ -78,6 +87,12 @@ namespace HeatedMetalManager
         public bool HasHeatedMetalInstalled()
         {
             string dllPath = GetHeatedMetalDLLDir();
+
+            if (File.Exists(Path.Combine(gameDirectory, "HeatedMetal", "ShadowLegacy.dll")))
+            {
+                return true;
+            }
+
             return File.Exists(dllPath);
         }
 

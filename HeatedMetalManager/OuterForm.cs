@@ -191,7 +191,13 @@ public partial class OuterForm : Form
             // Create batch file for updating
             string batchPath = Path.Combine(Path.GetTempPath(), "update.bat");
             string exePath = Application.ExecutablePath;
-            string updateScript = $@"@echo off timeout /t 1 /nobreak >nul move /y ""{tempFile}"" ""{exePath}""start """" ""{exePath}""del ""%~f0""";
+            string updateScript = $@"
+@echo off
+timeout /t 1 /nobreak >nul
+move /y ""{tempFile}"" ""{exePath}""
+start """" ""{exePath}""
+del ""%~f0""
+";
             File.WriteAllText(batchPath, updateScript);
 
             Process.Start(new ProcessStartInfo
@@ -215,7 +221,7 @@ public partial class OuterForm : Form
         try
         {
             var (latestTag, downloadUrl) = await GetLatestManagerVersion();
-            if (IsNewerVersion(latestTag, "0.4"))
+            if (IsNewerVersion(latestTag, "0.4.1"))
             {
                 var result = MessageBox.Show(
                     $"A new version of Heated Metal Manager ({latestTag}) is available. Would you like to update?",
