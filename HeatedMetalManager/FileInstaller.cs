@@ -253,7 +253,8 @@ namespace HeatedMetalManager
                     {
                         Debug.WriteLine("FOUND VANILLA DLL");
                         return false;
-                    } else if (fileInfo.Length == HMDLLSize)
+                    }
+                    else if (fileInfo.Length == HMDLLSize)
                     {
                         Debug.WriteLine("FOUND HEATED METAL DLL");
                         return true;

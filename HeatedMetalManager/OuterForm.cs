@@ -1,6 +1,5 @@
 ﻿using HeatedMetalManager;
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 
@@ -167,20 +166,13 @@ public partial class OuterForm : Form
 
     private bool IsNewerVersion(string latestVersion, string currentVersion)
     {
-        try
-        {
-            latestVersion = latestVersion.Trim().TrimStart('v', 'V', ' ');
-            currentVersion = currentVersion.Trim().TrimStart('v', 'V', ' ');
+        latestVersion = latestVersion.TrimStart('v');
+        currentVersion = currentVersion.TrimStart('v');
 
-            var latest = Version.Parse(latestVersion);
-            var current = Version.Parse(currentVersion);
+        Version latest = Version.Parse(latestVersion);
+        Version current = Version.Parse(currentVersion);
 
-            return latest > current;
-        }
-        catch
-        {
-            return !latestVersion.Equals(currentVersion, StringComparison.OrdinalIgnoreCase);
-        }
+        return latest > current;
     }
 
     private async Task UpdateManager(string downloadUrl)
@@ -357,14 +349,6 @@ public partial class OuterForm : Form
 
     private void UpdateAllStatus()
     {
-        var localVersion = GetLocalVersion();
-
-        if (string.IsNullOrEmpty(localVersion))
-        {
-            statusLabel.Text = "Version check failed! Game files may be modified.";
-            return;
-        }
-
         if (string.IsNullOrEmpty(gameDirectory) || !Directory.Exists(gameDirectory))
         {
             statusLabel.Text = "Please select a valid game directory.";
@@ -596,19 +580,10 @@ public partial class OuterForm : Form
         return File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : null;
     }
 
-            if (File.Exists(tempDll))
-            {
-                try
-                {
-                    File.Delete(tempDll);
-                    Debug.WriteLine("Temporary DLL cleaned up");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Temp file cleanup failed: {ex.Message}");
-                }
-            }
-        }
+    private bool GetHMInstall()
+    {
+        UpdateUIVersion();
+        return fileInstaller.HasHeatedMetalInstalled();
     }
 
     private async Task DownloadFileWithProgress(string url, string destination, ProgressBar progress)
@@ -698,13 +673,14 @@ public partial class OuterForm : Form
                 exclusionAdded = true;
                 await RunExtractionInternal(toolPath, command, archivePath);
                 isExtracted = true;
-            } else
+            }
+            else
             {
                 MessageBox.Show("Aborted... Closing manager.", "Exiting", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 Application.Exit();
             }
-            
-            
+
+
         }
         finally
         {
