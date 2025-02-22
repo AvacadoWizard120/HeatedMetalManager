@@ -98,6 +98,7 @@ public partial class OuterForm : Form
 
         isVanillaLabel = new Label
         {
+            Text = "Version: N/A",
             Location = new Point(10, 160),
             Width = 100,
             AutoSize = true
@@ -105,6 +106,7 @@ public partial class OuterForm : Form
 
         releaseVersionLabel = new Label
         {
+            Text = "Latest: Fetching...",
             Location = new Point(10, 180),
             Width = 100,
             AutoSize = true
@@ -213,7 +215,7 @@ public partial class OuterForm : Form
         try
         {
             var (latestTag, downloadUrl) = await GetLatestManagerVersion();
-            if (IsNewerVersion(latestTag, "0.3"))
+            if (IsNewerVersion(latestTag, "0.4"))
             {
                 var result = MessageBox.Show(
                     $"A new version of Heated Metal Manager ({latestTag}) is available. Would you like to update?",
@@ -270,7 +272,6 @@ public partial class OuterForm : Form
     {
         try
         {
-            fileInstaller?.CheckHeatedMetalExports();
             DisableAllControls();
 
             // Check for LumaPlay installation

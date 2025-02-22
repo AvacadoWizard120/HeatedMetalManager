@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace HeatedMetalManager
 {
@@ -6,40 +7,45 @@ namespace HeatedMetalManager
     {
         private static IntPtr _dllHandle = IntPtr.Zero;
 
-        // Function delegates to match the DLL exports
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate IntPtr HMVersionDelegate();
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate uint HMVersionIntDelegate();
 
-        // Public accessors for the delegates
+        [DllImport("kernel32")]
+        private static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
+
+        [DllImport("kernel32", EntryPoint = "GetProcAddress")]
+        private static extern IntPtr GetProcAddressOrdinal(IntPtr hModule, IntPtr ordinal);
+
         public static HMVersionDelegate HMVersion { get; private set; }
         public static HMVersionIntDelegate HMVersionInt { get; private set; }
 
-        // Initialize the DLL and functions
         public static void Initialize(string dllPath)
         {
-            if (_dllHandle != IntPtr.Zero) return; // Already loaded
+            if (_dllHandle != IntPtr.Zero) return;
 
-            _dllHandle = LoadLibrary(dllPath);
+            const uint DONT_RESOLVE_DLL_REFERENCES = 0x00000001;
+
+            _dllHandle = LoadLibraryEx(dllPath, IntPtr.Zero, DONT_RESOLVE_DLL_REFERENCES);
             if (_dllHandle == IntPtr.Zero)
             {
-                throw new DllNotFoundException($"Failed to load DLL: {dllPath}");
+                throw new DllNotFoundException($"Failed to load HeatedMetal.dll");
             }
 
-            // Get function pointers
-            IntPtr versionPtr = GetProcAddress(_dllHandle, "HMVersion");
-            IntPtr versionIntPtr = GetProcAddress(_dllHandle, "HMVersionInt");
+            IntPtr versionPtr = GetProcAddressOrdinal(_dllHandle, (IntPtr)1);
+            IntPtr versionIntPtr = GetProcAddressOrdinal(_dllHandle, (IntPtr)2);
 
             if (versionPtr == IntPtr.Zero || versionIntPtr == IntPtr.Zero)
             {
-                throw new EntryPointNotFoundException("Exported functions not found");
+                throw new EntryPointNotFoundException("Required HeatedMetal functions not found");
             }
 
-            // Convert pointers to delegates
             HMVersion = Marshal.GetDelegateForFunctionPointer<HMVersionDelegate>(versionPtr);
             HMVersionInt = Marshal.GetDelegateForFunctionPointer<HMVersionIntDelegate>(versionIntPtr);
         }
 
-        // Cleanup
         public static void Unload()
         {
             if (_dllHandle != IntPtr.Zero)
@@ -49,15 +55,11 @@ namespace HeatedMetalManager
             }
         }
 
-        // Windows API imports
         [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern IntPtr LoadLibrary(string lpFileName);
+        private static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hFile, uint dwFlags);
 
         [DllImport("kernel32", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool FreeLibrary(IntPtr hModule);
-
-        [DllImport("kernel32")]
-        private static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
     }
 }

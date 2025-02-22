@@ -45,15 +45,16 @@ namespace HeatedMetalManager
 
             try
             {
-                // Initialize the interop with the dynamic path
                 HeatedMetalInterop.Initialize(dllPath);
 
-                // Call the functions
+                // Call HMVersion() to get the string
                 IntPtr versionPtr = HeatedMetalInterop.HMVersion();
                 string version = Marshal.PtrToStringAnsi(versionPtr)!;
 
-                // Optional: Get integer version
+                // Call HMVersionInt() to get the integer
                 uint versionInt = HeatedMetalInterop.HMVersionInt();
+
+                Debug.WriteLine($"Version: {version}, VersionInt: 0x{versionInt:X}");
 
                 return version;
             }
@@ -64,7 +65,7 @@ namespace HeatedMetalManager
             }
             finally
             {
-                HeatedMetalInterop.Unload(); // Free the DLL
+                HeatedMetalInterop.Unload();
             }
         }
 
@@ -76,7 +77,8 @@ namespace HeatedMetalManager
 
         public bool HasHeatedMetalInstalled()
         {
-            return Directory.Exists(Path.Combine(gameDirectory, "HeatedMetal"));
+            string dllPath = GetHeatedMetalDLLDir();
+            return File.Exists(dllPath);
         }
 
         public bool IsUsingHeatedMetal()
@@ -276,55 +278,6 @@ namespace HeatedMetalManager
         {
             return currentAssembly.GetManifestResourceNames()
                 .Where(name => name.StartsWith(prefix));
-        }
-
-        public bool CheckDefaultArgsDLL()
-        {
-
-            long vanillaDLLSize = 5551816;
-            long HMDLLSize = 18432;
-
-            if (!string.IsNullOrEmpty(gameDirectory))
-            {
-                string[] files = Directory.GetFiles(gameDirectory, "*.*", SearchOption.AllDirectories);
-
-                foreach (string file in files)
-                {
-                    FileInfo fileInfo = new FileInfo(file);
-                    if (fileInfo.Length == vanillaDLLSize)
-                    {
-                        Debug.WriteLine("FOUND VANILLA DLL");
-                        return false;
-                    }
-                    else if (fileInfo.Length == HMDLLSize)
-                    {
-                        Debug.WriteLine("FOUND HEATED METAL DLL");
-                        return true;
-                    }
-                }
-            }
-
-
-
-            Debug.WriteLine("NEITHER DLLs FOUND!!!");
-            return false;
-        }
-
-        public void CheckHeatedMetalExports()
-        {
-            string heatedMetalPath = GetHeatedMetalDLLDir();
-
-            if (!File.Exists(heatedMetalPath))
-            {
-                Debug.WriteLine("HeatedMetal.dll not found");
-                return;
-            } else
-            {
-                Debug.WriteLine("FOUND HEATED METAL DLL!!!!");
-            }
-
-            var exportReader = new DllExportReader(heatedMetalPath);
-            exportReader.PrintExports();
         }
     }
 }
