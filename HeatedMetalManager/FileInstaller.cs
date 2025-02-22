@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace HeatedMetalManager
 {
@@ -27,6 +28,47 @@ namespace HeatedMetalManager
             this.assemblyDirectory = System.AppContext.BaseDirectory;
         }
 
+        public string GetHeatedMetalDLLDir()
+        {
+            return Path.Combine(gameDirectory, "HeatedMetal", "HeatedMetal.dll");
+        }
+
+        public string GetLocalVersion()
+        {
+            string dllPath = GetHeatedMetalDLLDir();
+
+            if (!File.Exists(dllPath))
+            {
+                Debug.WriteLine("HeatedMetal.dll not found!");
+                return "0.0.0";
+            }
+
+            try
+            {
+                // Initialize the interop with the dynamic path
+                HeatedMetalInterop.Initialize(dllPath);
+
+                // Call the functions
+                IntPtr versionPtr = HeatedMetalInterop.HMVersion();
+                string version = Marshal.PtrToStringAnsi(versionPtr)!;
+
+                // Optional: Get integer version
+                uint versionInt = HeatedMetalInterop.HMVersionInt();
+
+                return version;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to get version: {ex.Message}");
+                return "0.0.0";
+            }
+            finally
+            {
+                HeatedMetalInterop.Unload(); // Free the DLL
+            }
+        }
+
+
         public bool HasLumaPlayFiles()
         {
             return Directory.Exists(Path.Combine(gameDirectory, "LumaPlayFiles"));
@@ -39,7 +81,7 @@ namespace HeatedMetalManager
 
         public bool IsUsingHeatedMetal()
         {
-            string heatedMetalPath = Path.Combine(gameDirectory, "HeatedMetal", "HeatedMetal.dll");
+            string heatedMetalPath = GetHeatedMetalDLLDir();
             string shadowLegacyPath = Path.Combine(gameDirectory, "HeatedMetal", "ShadowLegacy.dll");
 
             if (File.Exists(heatedMetalPath)) return true;
@@ -266,6 +308,23 @@ namespace HeatedMetalManager
 
             Debug.WriteLine("NEITHER DLLs FOUND!!!");
             return false;
+        }
+
+        public void CheckHeatedMetalExports()
+        {
+            string heatedMetalPath = GetHeatedMetalDLLDir();
+
+            if (!File.Exists(heatedMetalPath))
+            {
+                Debug.WriteLine("HeatedMetal.dll not found");
+                return;
+            } else
+            {
+                Debug.WriteLine("FOUND HEATED METAL DLL!!!!");
+            }
+
+            var exportReader = new DllExportReader(heatedMetalPath);
+            exportReader.PrintExports();
         }
     }
 }

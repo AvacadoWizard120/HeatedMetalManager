@@ -1,6 +1,7 @@
 ﻿using HeatedMetalManager;
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 public partial class OuterForm : Form
@@ -8,7 +9,6 @@ public partial class OuterForm : Form
     private const string RepoOwner = "DataCluster0";
     private const string RepoName = "HeatedMetal";
     private const string ReleaseFile = "HeatedMetal.7z";
-    private const string VersionFile = "version.txt";
     private const string GameExe = "RainbowSix.exe";
 
     private readonly HttpClient httpClient = new();
@@ -270,6 +270,7 @@ public partial class OuterForm : Form
     {
         try
         {
+            fileInstaller?.CheckHeatedMetalExports();
             DisableAllControls();
 
             // Check for LumaPlay installation
@@ -296,7 +297,7 @@ public partial class OuterForm : Form
 
             // Get latest release info
             var (currentTag, downloadUrl) = await GetLatestReleaseInfo();
-            var localVersion = GetLocalVersion();
+            var localVersion = fileInstaller?.GetLocalVersion();
             var isHeatedMetalInstalled = fileInstaller?.HasHeatedMetalInstalled() ?? false;
 
             UpdateUIVersion();
@@ -367,7 +368,7 @@ public partial class OuterForm : Form
 
         if (fileInstaller?.HasHeatedMetalInstalled() == true)
         {
-            isVanillaLabel.Text = "Currently Installed: " + GetLocalVersion();
+            isVanillaLabel.Text = "Currently Installed: " + fileInstaller?.GetLocalVersion(); ;
             updateButton.Enabled = true;
             changeVersionsButton.Enabled = true;
             statusLabel.Text = "Ready to check for updates.";
@@ -444,7 +445,7 @@ public partial class OuterForm : Form
 
             statusLabel.Text = "Checking for updates...";
             var (currentTag, downloadUrl) = await GetLatestReleaseInfo();
-            var localVersion = GetLocalVersion();
+            var localVersion = fileInstaller?.GetLocalVersion();
             var isHeatedMetalInstalled = fileInstaller?.HasHeatedMetalInstalled() ?? false;
 
             if (localVersion == currentTag && isHeatedMetalInstalled)
@@ -459,7 +460,6 @@ public partial class OuterForm : Form
 
             statusLabel.Text = "Extracting update...";
             await ExtractUpdate(tempFile);
-            File.WriteAllText(Path.Combine(gameDirectory, VersionFile), currentTag);
 
             File.Delete(tempFile);
             statusLabel.Text = "Installation completed successfully!";
@@ -571,19 +571,6 @@ public partial class OuterForm : Form
             root.GetProperty("tag_name").GetString()!,
             root.GetProperty("assets")[0].GetProperty("browser_download_url").GetString()!
         );
-    }
-
-    private string? GetLocalVersion()
-    {
-        var versionFile = Path.Combine(gameDirectory, VersionFile);
-        UpdateUIVersion();
-        return File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : null;
-    }
-
-    private bool GetHMInstall()
-    {
-        UpdateUIVersion();
-        return fileInstaller.HasHeatedMetalInstalled();
     }
 
     private async Task DownloadFileWithProgress(string url, string destination, ProgressBar progress)
