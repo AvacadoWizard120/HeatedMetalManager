@@ -11,6 +11,8 @@ namespace HeatedMetalManager
         public bool UsingVanilla { get; set; }
         public bool UseVanillaProfile { get; set; }
         public string? VanillaProfile { get; set; }
+
+        public bool IsInitialSync { get; set; } = true;
     }
 
     public class SettingsManager
@@ -21,6 +23,22 @@ namespace HeatedMetalManager
 
         public bool VanillaProfileEnabled => currentSettings.UseVanillaProfile;
         public string? VanillaProfile => currentSettings.VanillaProfile;
+
+        public bool IsInitialSync
+        {
+            get => currentSettings.IsInitialSync;
+            set
+            {
+                currentSettings.IsInitialSync = value;
+                SaveSettings();
+            }
+        }
+
+        public void ResetInitialSync()
+        {
+            currentSettings.IsInitialSync = true;
+            SaveSettings();
+        }
 
 
         public SettingsManager()

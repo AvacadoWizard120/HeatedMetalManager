@@ -1,7 +1,9 @@
 ﻿using HeatedMetalManager;
 using System.Diagnostics;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 public partial class OuterForm : Form
 {
@@ -24,6 +26,7 @@ public partial class OuterForm : Form
     private Label isVanillaLabel;
     private Label releaseVersionLabel;
     private Label VoHM;
+    private RichTextBox releaseNotesTextBox;
 
     // For the profile manager tab
     private ComboBox profileComboBox;
@@ -32,6 +35,7 @@ public partial class OuterForm : Form
     private Button savePathButton;
     private TextBox savePathTextBox;
     private Button openExplorerButton;
+
 
     public OuterForm()
     {
@@ -42,6 +46,7 @@ public partial class OuterForm : Form
         settingsManager = new SettingsManager();
         DisableAllControls();
         CheckForManagerUpdateAsync();
+        settingsManager.ResetInitialSync();
         LoadSavedDirectoryAsync();
     }
 
@@ -78,7 +83,7 @@ public partial class OuterForm : Form
         changeVersionsButton = new Button
         {
             Text = "Swap Versions",
-            Location = new Point(200, 200),
+            Location = new Point(130, 197),
             Width = 100,
             Enabled = false
         };
@@ -136,6 +141,18 @@ public partial class OuterForm : Form
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
 
+        releaseNotesTextBox = new RichTextBox
+        {
+            Location = new Point(10, 220),
+            DetectUrls = false,
+            Width = 190,
+            Height = 150,
+            ReadOnly = true,
+            ScrollBars = RichTextBoxScrollBars.Vertical,
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
+        };
+
+
         TabPage mainTab = new TabPage("Main");
         TabPage profileTab = new TabPage("Profile Manager");
 
@@ -143,7 +160,7 @@ public partial class OuterForm : Form
                 dirLabel, dirTextBox, browseButton,
                 progressBar, statusLabel, updateButton,
                 isVanillaLabel, releaseVersionLabel, VoHM,
-                changeVersionsButton
+                changeVersionsButton, releaseNotesTextBox
             });
 
         InitializeProfileTab(profileTab);
@@ -260,7 +277,7 @@ del ""%~f0""
         try
         {
             var (latestTag, downloadUrl, releaseNotes) = await GetLatestManagerVersion();
-            if (IsNewerVersion(latestTag, "0.6.2"))
+            if (IsNewerVersion(latestTag, "0.6.3"))
             {
                 var result = MessageBox.Show(
                     $"A new version of Heated Metal Manager ({latestTag}) is available!\n\n" +
@@ -347,8 +364,8 @@ del ""%~f0""
                 }
             }
 
-            // Get latest release info
-            var (currentTag, downloadUrl) = await GetLatestReleaseInfo();
+            var (currentTag, downloadUrl, releaseNotes) = await GetLatestReleaseInfo();
+            DisplayReleaseNotes(releaseNotesTextBox, releaseNotes);
             var localVersion = fileInstaller?.GetLocalVersion();
             var isHeatedMetalInstalled = fileInstaller?.HasHeatedMetalInstalled() ?? false;
 
@@ -359,8 +376,7 @@ del ""%~f0""
                 isVanillaLabel.Text = "Currently Installed: " + localVersion;
                 releaseVersionLabel.Text = "Latest Release: " + currentTag;
 
-                // Enable or disable update button based on version comparison
-                updateButton.Enabled = localVersion != currentTag;
+                updateButton.Enabled = IsNewerVersion(currentTag, localVersion);
                 changeVersionsButton.Enabled = true;
                 statusLabel.Text = localVersion == currentTag ?
                     "Already up to date!" :
@@ -459,7 +475,8 @@ del ""%~f0""
     {
         try
         {
-            var (currentTag, _) = await GetLatestReleaseInfo();
+            var (currentTag, _, releaseNotes) = await GetLatestReleaseInfo();
+            DisplayReleaseNotes(releaseNotesTextBox, releaseNotes);
             releaseVersionLabel.Text = "Latest Release: " + currentTag;
 
             if (currentTag == releaseVersionLabel.Text)
@@ -470,6 +487,7 @@ del ""%~f0""
         catch (Exception ex)
         {
             releaseVersionLabel.Text = "Unable to fetch latest version";
+            releaseNotesTextBox.Text = "Failed to load release notes";
             Debug.WriteLine($"Error fetching release info: {ex.Message}");
         }
     }
@@ -528,7 +546,7 @@ del ""%~f0""
             progressBar.Value = 0;
 
             statusLabel.Text = "Checking for updates...";
-            var (currentTag, downloadUrl) = await GetLatestReleaseInfo();
+            var (currentTag, downloadUrl, releaseNotes) = await GetLatestReleaseInfo();
             var localVersion = fileInstaller?.GetLocalVersion();
             var isHeatedMetalInstalled = fileInstaller?.HasHeatedMetalInstalled() ?? false;
 
@@ -634,7 +652,7 @@ del ""%~f0""
         UpdateAllStatus();
     }
 
-    private async Task<(string TagName, string DownloadUrl)> GetLatestReleaseInfo()
+    private async Task<(string TagName, string DownloadUrl, string ReleaseNotes)> GetLatestReleaseInfo()
     {
         string cachePath = Path.Combine(Path.GetTempPath(), "HeatedMetalReleaseCache.json");
 
@@ -648,7 +666,8 @@ del ""%~f0""
                 var root = cachedDoc.RootElement;
                 return (
                     root.GetProperty("tag_name").GetString()!,
-                    root.GetProperty("assets")[0].GetProperty("browser_download_url").GetString()!
+                    root.GetProperty("assets")[0].GetProperty("browser_download_url").GetString()!,
+                    root.GetProperty("body").GetString()!
                 );
             }
             catch { /* Ignore invalid cache */ }
@@ -688,7 +707,8 @@ del ""%~f0""
             var root = doc.RootElement;
             return (
                 root.GetProperty("tag_name").GetString()!,
-                root.GetProperty("assets")[0].GetProperty("browser_download_url").GetString()!
+                root.GetProperty("assets")[0].GetProperty("browser_download_url").GetString()!,
+                root.GetProperty("body").GetString()!
             );
         }
         catch (HttpRequestException ex)
@@ -701,7 +721,8 @@ del ""%~f0""
                 var root = cachedDoc.RootElement;
                 return (
                     root.GetProperty("tag_name").GetString()!,
-                    root.GetProperty("assets")[0].GetProperty("browser_download_url").GetString()!
+                    root.GetProperty("assets")[0].GetProperty("browser_download_url").GetString()!,
+                    root.GetProperty("body").GetString()!
                 );
             }
             throw new Exception($"Failed to fetch release data. {ex.Message}");
@@ -895,6 +916,51 @@ del ""%~f0""
             throw new Exception($"Failed to remove exclusion. Exit code: {process.ExitCode}");
     }
 
+    // Markdown for release notes
+    private void DisplayReleaseNotes(RichTextBox textBox, string markdown)
+    {
+        textBox.Clear(); // Clear existing content
+        textBox.SelectionFont = textBox.Font; // Default font
+
+        string[] lines = markdown.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+
+        foreach (var line in lines)
+        {
+            var trimmedLine = line.Trim();
+
+            // Handle headers (e.g., **– General**)
+            if (trimmedLine.StartsWith("**") && trimmedLine.EndsWith("**"))
+            {
+                string cleanLine = trimmedLine.Trim('*');
+                textBox.SelectionFont = new Font(textBox.Font, FontStyle.Bold);
+                textBox.AppendText(cleanLine + "\n");
+            }
+            // Handle bullet points (e.g., - Item)
+            else if (trimmedLine.StartsWith("- "))
+            {
+                textBox.SelectionBullet = true;
+                textBox.AppendText(trimmedLine.Substring(2).Trim() + "\n");
+                textBox.SelectionBullet = false;
+            }
+            // Handle version text (e.g., Version 0.1.4)
+            else if (trimmedLine.StartsWith("Version "))
+            {
+                textBox.SelectionFont = new Font(textBox.Font, FontStyle.Italic);
+                textBox.AppendText(trimmedLine + "\n\n");
+            }
+            // Regular text
+            else
+            {
+                textBox.SelectionFont = new Font(textBox.Font, FontStyle.Regular);
+                textBox.AppendText(trimmedLine + "\n");
+            }
+        }
+
+        textBox.SelectionStart = 0; // Scroll to top
+    }
+
+
+
 
     // Profile Management for HeliosLoader
 
@@ -956,9 +1022,10 @@ del ""%~f0""
     private void UpdateVanillaProfileList()
     {
         vanillaProfileComboBox.Items.Clear();
-        if (!Directory.Exists(Path.Combine(gameDirectory, profileConfig.SavePath))) return;
+        string saveDir = Path.Combine(gameDirectory, profileConfig.SavePath);
+        if (!Directory.Exists(saveDir)) return;
 
-        foreach (var dir in Directory.GetDirectories(Path.Combine(gameDirectory, profileConfig.SavePath)))
+        foreach (var dir in Directory.GetDirectories(saveDir))
         {
             vanillaProfileComboBox.Items.Add(Path.GetFileName(dir));
         }
@@ -994,58 +1061,27 @@ del ""%~f0""
 
     private void LoadProfileConfig()
     {
-        if (File.Exists(HeliosLoaderPath))
-        {
-            try
-            {
-                var heliosJson = File.ReadAllText(HeliosLoaderPath);
-                var heliosConfig = JsonSerializer.Deserialize<HeliosConfig>(heliosJson);
-
-                profileConfig.Username = heliosConfig.Username;
-                profileConfig.ProfileID = heliosConfig.ProfileID;
-                profileConfig.SavePath = heliosConfig.SavePath;
-                profileConfig.ProductID = heliosConfig.ProductID;
-
-                SaveProfileConfig();
-            }
-            catch { /* Ignore errors */ }
-        }
-        else
-        {
-            SetProfileControlsEnabled(false);
-        }
-
         if (File.Exists(ProfileConfigPath))
         {
             try
             {
                 string json = File.ReadAllText(ProfileConfigPath);
-                var savedConfig = JsonSerializer.Deserialize<GameProfileConfig>(json);
-
-                if (!string.IsNullOrEmpty(savedConfig.Username))
-                    profileConfig.Username = savedConfig.Username;
-                if (!string.IsNullOrEmpty(savedConfig.ProfileID))
-                    profileConfig.ProfileID = savedConfig.ProfileID;
-                if (!string.IsNullOrEmpty(savedConfig.SavePath))
-                    profileConfig.SavePath = savedConfig.SavePath;
-                if (savedConfig.ProductID != 0)
-                    profileConfig.ProductID = savedConfig.ProductID;
+                profileConfig = JsonSerializer.Deserialize<GameProfileConfig>(json);
             }
-            catch (JsonException ex)
-            {
-                MessageBox.Show($"Error loading profile config: {ex.Message}. Creating new config.");
-                SaveProfileConfig();
-            }
+            catch { /* existing error handling */ }
         }
 
-        vanillaProfileCheckbox.Checked = settingsManager.VanillaProfileEnabled;
-        vanillaProfileComboBox.Enabled = settingsManager.VanillaProfileEnabled;
-        if (!string.IsNullOrEmpty(settingsManager.VanillaProfile))
+        if (settingsManager.IsInitialSync)
         {
-            vanillaProfileComboBox.SelectedItem = settingsManager.VanillaProfile;
+            SyncWithHeliosLoader();
+            settingsManager.IsInitialSync = false;
         }
 
-        UpdateProfileUI();
+        if (string.IsNullOrEmpty(profileConfig.SavePath))
+        {
+            profileConfig.SavePath = "SAVE_GAMES";
+            SaveProfileConfig();
+        }
     }
 
     private void SaveProfileConfig()
@@ -1192,25 +1228,31 @@ del ""%~f0""
 
         try
         {
-            var json = File.ReadAllText(HeliosLoaderPath);
-            var heliosConfig = JsonSerializer.Deserialize<HeliosConfig>(json)!;
+            var heliosJson = File.ReadAllText(HeliosLoaderPath);
+            var heliosConfig = JsonSerializer.Deserialize<HeliosConfig>(heliosJson);
 
-            heliosConfig.Username = profileConfig.Username;
-            heliosConfig.SavePath = profileConfig.SavePath;
-            heliosConfig.ProductID = profileConfig.ProductID;
-            heliosConfig.Email = $"{profileConfig.Username}@ubisoft.com";
-
-            if (!fileInstaller.IsUsingHeatedMetal() && settingsManager.VanillaProfileEnabled)
+            if (settingsManager.IsInitialSync)
             {
-                heliosConfig.ProfileID = settingsManager.VanillaProfile;
+                if (string.IsNullOrEmpty(profileConfig.Username))
+                    profileConfig.Username = heliosConfig.Username;
+                if (string.IsNullOrEmpty(profileConfig.ProfileID))
+                    profileConfig.ProfileID = heliosConfig.ProfileID;
+                if (string.IsNullOrEmpty(profileConfig.SavePath))
+                    profileConfig.SavePath = heliosConfig.SavePath;
+                if (profileConfig.ProductID == 0)
+                    profileConfig.ProductID = heliosConfig.ProductID;
             }
             else
             {
+                heliosConfig.Username = profileConfig.Username;
                 heliosConfig.ProfileID = profileConfig.ProfileID;
-            }
+                heliosConfig.SavePath = profileConfig.SavePath;
+                heliosConfig.ProductID = profileConfig.ProductID;
+                heliosConfig.Email = $"{profileConfig.Username}@ubisoft.com";
 
-            File.WriteAllText(HeliosLoaderPath,
-                JsonSerializer.Serialize(heliosConfig, new JsonSerializerOptions { WriteIndented = true }));
+                File.WriteAllText(HeliosLoaderPath,
+                    JsonSerializer.Serialize(heliosConfig, new JsonSerializerOptions { WriteIndented = true }));
+            }
         }
         catch (Exception ex)
         {
