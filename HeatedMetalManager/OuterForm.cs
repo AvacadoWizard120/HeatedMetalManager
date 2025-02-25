@@ -1156,7 +1156,7 @@ del ""%~f0""
 
     private void OpenExplorerButton_Click(object sender, EventArgs e)
     {
-        string path = Path.Combine(gameDirectory, profileConfig.SavePath, profileConfig.ProfileID, profileConfig.ProductID.ToString());
+        string path = Path.Combine(gameDirectory, profileConfig.SavePath);
         if (Directory.Exists(path)) Process.Start("explorer.exe", path);
     }
 
