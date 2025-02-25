@@ -1,9 +1,10 @@
 ﻿using HeatedMetalManager;
 using System.Diagnostics;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using static System.Net.Mime.MediaTypeNames;
+using Application = System.Windows.Forms.Application;
 
 public partial class OuterForm : Form
 {
@@ -41,7 +42,7 @@ public partial class OuterForm : Form
     {
         this.AutoScaleMode = AutoScaleMode.None;
         InitializeComponent();
-        Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        Icon = Icon.ExtractAssociatedIcon(System.Windows.Forms.Application.ExecutablePath);
         httpClient.DefaultRequestHeaders.Add("User-Agent", "HeatedMetalManager");
         settingsManager = new SettingsManager();
         DisableAllControls();
@@ -932,14 +933,16 @@ del ""%~f0""
 
             if (trimmedLine.StartsWith("# - "))
             {
-                textBox.SelectionFont = new Font(textBox.Font.FontFamily, 12, FontStyle.Bold);
+                textBox.SelectionFont = new System.Drawing.Font(textBox.Font.FontFamily, 12, FontStyle.Bold);
                 textBox.AppendText(trimmedLine.Substring(3).Trim() + "\n\n");
             }
             else if (trimmedLine.StartsWith("- "))
             {
                 textBox.SelectionIndent = 15;
                 textBox.SelectionBullet = true;
-                textBox.AppendText(trimmedLine.Substring(2).Trim() + "\n");
+
+                ProcessInlineStyles(textBox, line.Substring(2).Trim());
+
                 textBox.SelectionBullet = false;
                 textBox.SelectionIndent = 0;
             }
@@ -949,7 +952,7 @@ del ""%~f0""
             }
             else
             {
-                textBox.SelectionFont = new Font(textBox.Font, FontStyle.Regular);
+                textBox.SelectionFont = new System.Drawing.Font(textBox.Font, FontStyle.Regular);
                 textBox.AppendText(line + "\n");
             }
         }
@@ -957,24 +960,24 @@ del ""%~f0""
         textBox.SelectionStart = 0;
     }
 
-    private void ProcessInlineStyles(RichTextBox rtb, string line)
+    private void ProcessInlineStyles(RichTextBox rtb, string text)
     {
-        var matches = Regex.Matches(line, @"\*\*\*(.*?)\*\*\*");
+        var matches = Regex.Matches(text, @"\*\*\*(.*?)\*\*\*");
         int lastIndex = 0;
 
         foreach (Match match in matches)
         {
-            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Regular);
-            rtb.AppendText(line.Substring(lastIndex, match.Index - lastIndex));
+            rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Regular);
+            rtb.AppendText(text.Substring(lastIndex, match.Index - lastIndex));
 
-            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Bold | FontStyle.Italic);
+            rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Bold | FontStyle.Italic);
             rtb.AppendText(match.Groups[1].Value);
 
             lastIndex = match.Index + match.Length;
         }
 
-        rtb.SelectionFont = new Font(rtb.Font, FontStyle.Regular);
-        rtb.AppendText(line.Substring(lastIndex) + "\n");
+        rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Regular);
+        rtb.AppendText(text.Substring(lastIndex) + "\n");
     }
 
 
