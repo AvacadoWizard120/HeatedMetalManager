@@ -173,7 +173,7 @@ public partial class OuterForm : Form
         statusLabel.Text = "Initializing...";
     }
 
-    private async Task<(string TagName, string DownloadUrl)> GetLatestManagerVersion()
+    private async Task<(string TagName, string DownloadUrl, string ReleaseNotes)> GetLatestManagerVersion()
     {
         var response = await httpClient.GetStringAsync($"https://api.github.com/repos/AvacadoWizard120/HeatedMetalManager/releases/latest");
 
@@ -191,7 +191,8 @@ public partial class OuterForm : Form
 
         return (
             root.GetProperty("tag_name").GetString()!,
-            managerAsset.GetProperty("browser_download_url").GetString()!
+            managerAsset.GetProperty("browser_download_url").GetString()!,
+            root.GetProperty("body").GetString()!
         );
     }
 
@@ -249,11 +250,13 @@ del ""%~f0""
     {
         try
         {
-            var (latestTag, downloadUrl) = await GetLatestManagerVersion();
-            if (IsNewerVersion(latestTag, "0.6.1"))
+            var (latestTag, downloadUrl, releaseNotes) = await GetLatestManagerVersion();
+            if (IsNewerVersion(latestTag, "0.6")) // Remember to change this to 0.6.2 before building...
             {
                 var result = MessageBox.Show(
-                    $"A new version of Heated Metal Manager ({latestTag}) is available. Would you like to update?",
+                    $"A new version of Heated Metal Manager ({latestTag}) is available!\n\n" +
+                    $"Release Notes:\n{releaseNotes}\n\n" +
+                    $"Would you like to update?",
                     "Update Available",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Information
@@ -993,36 +996,37 @@ del ""%~f0""
                 profileConfig.ProfileID = heliosConfig.ProfileID;
                 profileConfig.SavePath = heliosConfig.SavePath;
                 profileConfig.ProductID = heliosConfig.ProductID;
-            }
-            catch { /* fuck off */ }
-        }
 
-        if (!File.Exists(HeliosLoaderPath))
-        {
-            SetProfileControlsEnabled(false);
+                SaveProfileConfig();
+            }
+            catch { /* Ignore errors */ }
         }
         else
         {
-            SetProfileControlsEnabled(true);
+            SetProfileControlsEnabled(false);
         }
 
-        if (!File.Exists(ProfileConfigPath))
+        if (File.Exists(ProfileConfigPath))
         {
-            SaveProfileConfig();
-            return;
-        }
-        try
-        {
-            string json = File.ReadAllText(ProfileConfigPath);
-#pragma warning disable CS8601 // Possible null reference assignment.
-            profileConfig = JsonSerializer.Deserialize<GameProfileConfig>(json);
-#pragma warning restore CS8601 // Possible null reference assignment.
-        }
-        catch (JsonException ex)
-        {
-            MessageBox.Show($"Error loading profile config: {ex.Message}. Creating new config.");
-            profileConfig = new GameProfileConfig();
-            SaveProfileConfig();
+            try
+            {
+                string json = File.ReadAllText(ProfileConfigPath);
+                var savedConfig = JsonSerializer.Deserialize<GameProfileConfig>(json);
+
+                if (!string.IsNullOrEmpty(savedConfig.Username))
+                    profileConfig.Username = savedConfig.Username;
+                if (!string.IsNullOrEmpty(savedConfig.ProfileID))
+                    profileConfig.ProfileID = savedConfig.ProfileID;
+                if (!string.IsNullOrEmpty(savedConfig.SavePath))
+                    profileConfig.SavePath = savedConfig.SavePath;
+                if (savedConfig.ProductID != 0)
+                    profileConfig.ProductID = savedConfig.ProductID;
+            }
+            catch (JsonException ex)
+            {
+                MessageBox.Show($"Error loading profile config: {ex.Message}. Creating new config.");
+                SaveProfileConfig();
+            }
         }
 
         vanillaProfileCheckbox.Checked = settingsManager.VanillaProfileEnabled;
