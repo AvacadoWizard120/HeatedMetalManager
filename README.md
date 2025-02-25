@@ -3,7 +3,7 @@
 
 ## Features:
 - Check for Heated Metal Updates/Auto update Heated Metal.
-- If LumaPlay is detected in your game directory the manager will remove LumaPlay and install the new crack.
+- If LumaPlay is detected in your game directory the manager will remove LumaPlay and install Helios Loader.
 - **Swap** between vanilla Shadow Legacy and Heated Metal at the click of a button.
 
 
