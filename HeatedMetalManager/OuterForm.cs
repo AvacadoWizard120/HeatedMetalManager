@@ -919,8 +919,8 @@ del ""%~f0""
     // Markdown for release notes
     private void DisplayReleaseNotes(RichTextBox textBox, string markdown)
     {
-        textBox.Clear(); // Clear existing content
-        textBox.SelectionFont = textBox.Font; // Default font
+        textBox.Clear();
+        textBox.SelectionFont = textBox.Font;
 
         string[] lines = markdown.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
 
@@ -928,37 +928,50 @@ del ""%~f0""
         {
             var trimmedLine = line.Trim();
 
-            // Handle headers (e.g., **– General**)
-            if (trimmedLine.StartsWith("**") && trimmedLine.EndsWith("**"))
+            if (trimmedLine.StartsWith("# "))
             {
-                string cleanLine = trimmedLine.Trim('*');
                 textBox.SelectionFont = new Font(textBox.Font, FontStyle.Bold);
-                textBox.AppendText(cleanLine + "\n");
+                textBox.AppendText(trimmedLine.Substring(4).Trim() + "\n\n");
             }
-            // Handle bullet points (e.g., - Item)
+            else if (trimmedLine.Contains("***"))
+            {
+                ProcessInlineStyles(textBox, line);
+            }
             else if (trimmedLine.StartsWith("- "))
             {
                 textBox.SelectionBullet = true;
                 textBox.AppendText(trimmedLine.Substring(2).Trim() + "\n");
                 textBox.SelectionBullet = false;
             }
-            // Handle version text (e.g., Version 0.1.4)
-            else if (trimmedLine.StartsWith("Version "))
-            {
-                textBox.SelectionFont = new Font(textBox.Font, FontStyle.Italic);
-                textBox.AppendText(trimmedLine + "\n\n");
-            }
-            // Regular text
             else
             {
                 textBox.SelectionFont = new Font(textBox.Font, FontStyle.Regular);
-                textBox.AppendText(trimmedLine + "\n");
+                textBox.AppendText(line + "\n");
             }
         }
 
-        textBox.SelectionStart = 0; // Scroll to top
+        textBox.SelectionStart = 0;
     }
 
+    private void ProcessInlineStyles(RichTextBox rtb, string line)
+    {
+        var matches = Regex.Matches(line, @"\*\*\*(.*?)\*\*\*");
+        int lastIndex = 0;
+
+        foreach (Match match in matches)
+        {
+            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Regular);
+            rtb.AppendText(line.Substring(lastIndex, match.Index - lastIndex));
+
+            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Bold | FontStyle.Italic);
+            rtb.AppendText(match.Groups[1].Value);
+
+            lastIndex = match.Index + match.Length;
+        }
+
+        rtb.SelectionFont = new Font(rtb.Font, FontStyle.Regular);
+        rtb.AppendText(line.Substring(lastIndex) + "\n");
+    }
 
 
 
