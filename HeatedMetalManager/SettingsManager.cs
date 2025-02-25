@@ -9,6 +9,8 @@ namespace HeatedMetalManager
 
         public bool IsVanilla { get; set; }
         public bool UsingVanilla { get; set; }
+        public bool UseVanillaProfile { get; set; }
+        public string? VanillaProfile { get; set; }
     }
 
     public class SettingsManager
@@ -16,6 +18,10 @@ namespace HeatedMetalManager
         private const string SettingsFileName = "settings.json";
         private readonly string settingsFilePath;
         private UserSettings currentSettings;
+
+        public bool VanillaProfileEnabled => currentSettings.UseVanillaProfile;
+        public string? VanillaProfile => currentSettings.VanillaProfile;
+
 
         public SettingsManager()
         {
@@ -80,6 +86,17 @@ namespace HeatedMetalManager
         public void SetUsingVanilla(bool usingVanilla)
         {
             currentSettings.UsingVanilla = usingVanilla;
+            SaveSettings();
+        }
+        public void SetUseVanillaProfile(bool useVanillaProfile)
+        {
+            currentSettings.UseVanillaProfile = useVanillaProfile;
+            SaveSettings();
+        }
+
+        public void SetVanillaProfile(string profile)
+        {
+            currentSettings.VanillaProfile = profile;
             SaveSettings();
         }
     }

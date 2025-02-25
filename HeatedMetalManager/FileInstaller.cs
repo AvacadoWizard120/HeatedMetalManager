@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Windows.Media.Playback;
 
 namespace HeatedMetalManager
 {
@@ -32,18 +33,28 @@ namespace HeatedMetalManager
             this.httpClient = httpClient;
         }
 
+        public string GetAssemblyDirectory()
+        {
+            return assemblyDirectory;
+        }
+
         public string GetHeatedMetalDLLDir()
         {
             string usingVanillaDLL = Path.Combine(gameDirectory, "HeatedMetal", "ShadowLegacy.dll");
-            string usingHMDLL = Path.Combine(gameDirectory, "HeatedMetal", "ShadowLegacy.dll");
+            string usingHMDLL = Path.Combine(gameDirectory, "HeatedMetal", "HeatedMetal.dll");
+
+            if (gameDirectory == null || !Directory.Exists(Path.Combine(gameDirectory, "HeatedMetal")))
+            {
+                return usingHMDLL;
+            }
 
             if (File.Exists(usingVanillaDLL))
             {
                 Debug.WriteLine("FOUND SHADOWLEGACY.DLL!!");
-                return (usingVanillaDLL);
+                return usingVanillaDLL;
             }
 
-            return Path.Combine(gameDirectory, "HeatedMetal", "HeatedMetal.dll");
+            return File.Exists(usingHMDLL) ? usingHMDLL : usingHMDLL;
         }
 
         public string GetLocalVersion()
@@ -105,10 +116,12 @@ namespace HeatedMetalManager
             string heatedMetalPath = GetHeatedMetalDLLDir();
             string shadowLegacyPath = Path.Combine(gameDirectory, "HeatedMetal", "ShadowLegacy.dll");
 
-            if (File.Exists(heatedMetalPath)) return true;
-            if (File.Exists(shadowLegacyPath)) return false;
-
-            return false;
+            if (heatedMetalPath == shadowLegacyPath)
+            {
+                
+                return false;
+            }
+            return true;
         }
 
         public void RemoveLumaPlayFiles()
@@ -241,14 +254,14 @@ namespace HeatedMetalManager
 
 
 
-        public async Task SwapGameVersion(bool useVanilla)
+        public async Task SwapGameVersion()
         {
-            Debug.WriteLine(useVanilla);
-
             await Task.Run(() =>
             {
                 try
                 {
+                    bool useHeatedMetal = IsUsingHeatedMetal();
+
                     progress?.Report(0);
                     string heatedMetalDir = Path.Combine(gameDirectory, "HeatedMetal");
                     string heatedMetalDllDir = Path.Combine(heatedMetalDir, "HeatedMetal.dll");
@@ -266,13 +279,13 @@ namespace HeatedMetalManager
 
                     progress?.Report(25);
 
-                    if (!useVanilla && File.Exists(heatedMetalDllDir))
+                    if (File.Exists(heatedMetalDllDir))
                     {
                         Debug.WriteLine("FOUND HEATED METALL DLL!!");
                         heatedMetalDLL.MoveTo(shadowLegacyDllDir);
                         progress?.Report(50);
                     }
-                    else if (useVanilla && File.Exists(shadowLegacyDllDir))
+                    else if (File.Exists(shadowLegacyDllDir))
                     {
                         Debug.WriteLine("FOUND VANILLA DLL!!");
                         shadowLegacyDLL.MoveTo(heatedMetalDllDir);
@@ -280,7 +293,7 @@ namespace HeatedMetalManager
                     }
 
                     progress?.Report(100);
-                    Debug.WriteLine($"Successfully swapped game version. Using Vanilla: {useVanilla}");
+                    Debug.WriteLine($"Successfully swapped game version. Using Vanilla: {useHeatedMetal}");
                 }
                 catch (Exception ex)
                 {
@@ -288,6 +301,19 @@ namespace HeatedMetalManager
                     throw;
                 }
             });
+        }
+
+
+        // Check for Helios Loader
+
+        public bool HeliosLoader()
+        {
+            if (File.Exists(Path.Combine(gameDirectory, "HeliosLoader.json")))
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }
