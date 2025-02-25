@@ -201,10 +201,19 @@ public partial class OuterForm : Form
         latestVersion = latestVersion.TrimStart('v');
         currentVersion = currentVersion.TrimStart('v');
 
-        Version latest = Version.Parse(latestVersion);
-        Version current = Version.Parse(currentVersion);
+        var latestParts = latestVersion.Split('.');
+        var currentParts = currentVersion.Split('.');
 
-        return latest > current;
+        for (int i = 0; i < Math.Max(latestParts.Length, currentParts.Length); i++)
+        {
+            int latestPart = i < latestParts.Length ? int.Parse(latestParts[i]) : 0;
+            int currentPart = i < currentParts.Length ? int.Parse(currentParts[i]) : 0;
+
+            if (latestPart > currentPart) return true;
+            if (latestPart < currentPart) return false;
+        }
+
+        return false;
     }
 
     private async Task UpdateManager(string downloadUrl)
@@ -251,7 +260,7 @@ del ""%~f0""
         try
         {
             var (latestTag, downloadUrl, releaseNotes) = await GetLatestManagerVersion();
-            if (IsNewerVersion(latestTag, "0.6")) // Remember to change this to 0.6.2 before building...
+            if (IsNewerVersion(latestTag, "0.6.2"))
             {
                 var result = MessageBox.Show(
                     $"A new version of Heated Metal Manager ({latestTag}) is available!\n\n" +

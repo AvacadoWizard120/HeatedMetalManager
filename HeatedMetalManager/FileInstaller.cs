@@ -79,8 +79,8 @@ namespace HeatedMetalManager
                 uint versionInt = HeatedMetalInterop.HMVersionInt();
 
                 Debug.WriteLine($"Version: {version}, VersionInt: 0x{versionInt:X}");
-
-                return version;
+                
+                return version.Trim();
             }
             catch (Exception ex)
             {
