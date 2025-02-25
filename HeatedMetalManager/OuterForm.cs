@@ -916,6 +916,8 @@ del ""%~f0""
             throw new Exception($"Failed to remove exclusion. Exit code: {process.ExitCode}");
     }
 
+
+
     // Markdown for release notes
     private void DisplayReleaseNotes(RichTextBox textBox, string markdown)
     {
@@ -928,20 +930,22 @@ del ""%~f0""
         {
             var trimmedLine = line.Trim();
 
-            if (trimmedLine.StartsWith("# "))
+            if (trimmedLine.StartsWith("# - "))
             {
-                textBox.SelectionFont = new Font(textBox.Font, FontStyle.Bold);
-                textBox.AppendText(trimmedLine.Substring(4).Trim() + "\n\n");
+                textBox.SelectionFont = new Font(textBox.Font.FontFamily, 12, FontStyle.Bold);
+                textBox.AppendText(trimmedLine.Substring(3).Trim() + "\n\n");
+            }
+            else if (trimmedLine.StartsWith("- "))
+            {
+                textBox.SelectionIndent = 15;
+                textBox.SelectionBullet = true;
+                textBox.AppendText(trimmedLine.Substring(2).Trim() + "\n");
+                textBox.SelectionBullet = false;
+                textBox.SelectionIndent = 0;
             }
             else if (trimmedLine.Contains("***"))
             {
                 ProcessInlineStyles(textBox, line);
-            }
-            else if (trimmedLine.StartsWith("- "))
-            {
-                textBox.SelectionBullet = true;
-                textBox.AppendText(trimmedLine.Substring(2).Trim() + "\n");
-                textBox.SelectionBullet = false;
             }
             else
             {
