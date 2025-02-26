@@ -278,7 +278,7 @@ del ""%~f0""
         try
         {
             var (latestTag, downloadUrl, releaseNotes) = await GetLatestManagerVersion();
-            if (IsNewerVersion(latestTag, "0.7"))
+            if (IsNewerVersion(latestTag, "0.7.1"))
             {
                 var result = MessageBox.Show(
                     $"A new version of Heated Metal Manager ({latestTag}) is available!\n\n" +
@@ -408,20 +408,6 @@ del ""%~f0""
             statusLabel.Text = "Error during initialization. Please try again.";
         }
     }
-
-    // private void UpdateUIVersion()
-    // {
-    //     if (fileInstaller?.IsUsingHeatedMetal() == true)
-    //     {
-    //         VoHM.Text = "Using Heated Metal";
-    //         settingsManager.SetUsingVanilla(false);
-    //     }
-    //     else
-    //     {
-    //         VoHM.Text = "Using Vanilla";
-    //         settingsManager.SetUsingVanilla(true);
-    //     }
-    // }
 
     private void UpdateAllStatus()
     {
@@ -1177,7 +1163,7 @@ del ""%~f0""
 
     private void UpdateProfileUI()
     {
-        vanillaProfileCheckbox.Checked = settingsManager.IsVanilla();
+        vanillaProfileCheckbox.Checked = settingsManager.VanillaProfileEnabled;
         usernameButton.Text = $"Username: {profileConfig.Username}";
         savePathButton.Text = $"Save Path: {profileConfig.SavePath}";
         LoadProfiles();
