@@ -13,6 +13,8 @@ namespace HeatedMetalManager
         public string? VanillaProfile { get; set; }
 
         public bool IsInitialSync { get; set; } = true;
+
+        public bool VCRedistChecked { get; set; }
     }
 
     public class SettingsManager
@@ -23,6 +25,22 @@ namespace HeatedMetalManager
 
         public bool VanillaProfileEnabled => currentSettings.UseVanillaProfile;
         public string? VanillaProfile => currentSettings.VanillaProfile;
+
+        public bool VCRedistChecked
+        {
+            get => currentSettings.VCRedistChecked;
+            set
+            {
+                currentSettings.VCRedistChecked = value;
+                SaveSettings();
+            }
+        }
+
+        public void MarkVCRedistChecked()
+        {
+            VCRedistChecked = true;
+        }
+
 
         public bool IsInitialSync
         {

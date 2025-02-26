@@ -1,6 +1,8 @@
 ﻿using HeatedMetalManager;
+using Microsoft.Win32;
 using System.Diagnostics;
 using System.Net.Http.Headers;
+using System.Security.Principal;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -40,6 +42,9 @@ public partial class OuterForm : Form
 
     private bool isHeliosPromptActive = false; // I'm just gonna go ahead and make this class level because this prompt is annoying and I'm lazy (efficient)
 
+    private bool _hasAdminRights;
+    private bool _antivirusCheckPerformed;
+
 
     public OuterForm()
     {
@@ -48,6 +53,8 @@ public partial class OuterForm : Form
         Icon = Icon.ExtractAssociatedIcon(System.Windows.Forms.Application.ExecutablePath);
         httpClient.DefaultRequestHeaders.Add("User-Agent", "HeatedMetalManager");
         settingsManager = new SettingsManager();
+        _hasAdminRights = IsAdministrator();
+        _antivirusCheckPerformed = false;
         DisableAllControls();
         CheckForManagerUpdateAsync();
         settingsManager.ResetInitialSync();
@@ -345,6 +352,7 @@ del ""%~f0""
         try
         {
             DisableAllControls();
+            progressBar.Style = ProgressBarStyle.Continuous;
 
             // Check for LumaPlay installation
             if (fileInstaller?.HasLumaPlayFiles() == true)
@@ -366,6 +374,12 @@ del ""%~f0""
                     browseButton.Enabled = true;
                     return;
                 }
+            }
+
+            if (!settingsManager.VCRedistChecked)
+            {
+                await HandleXAudioFile();
+                await CheckAndInstallVCRedist();
             }
 
             var (currentTag, downloadUrl, releaseNotes) = await GetLatestReleaseInfo();
@@ -411,6 +425,143 @@ del ""%~f0""
             statusLabel.Text = "Error during initialization. Please try again.";
         }
     }
+
+    private async Task HandleXAudioFile()
+    {
+        string xaudioPath = Path.Combine(gameDirectory, "xaudio2_9.dll");
+        if (File.Exists(xaudioPath))
+        {
+            try
+            {
+                statusLabel.Text = "Removing xaudio2_9.dll...";
+                File.Delete(xaudioPath);
+                await Task.Delay(1000); // Hard drives... amiright?
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error deleting xaudio2_9.dll: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task CheckAndInstallVCRedist()
+    {
+        if (settingsManager.VCRedistChecked) return;
+
+        DisableAllControls();
+
+        statusLabel.Text = "Checking system requirements...";
+        progressBar.Value = 10;
+        bool installationAttempted = false;
+        string tempPath = Path.Combine(Path.GetTempPath(), "vc_redist.x64.exe");
+
+        try
+        {
+            if (!IsVCRedistInstalled())
+            {
+                if (!_hasAdminRights)
+                {
+                    var result = MessageBox.Show(
+                        "VC++ Redistributable is required. Restart as Administrator to install?",
+                        "Admin Rights Needed",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning
+                    );
+
+                    if (result == DialogResult.Yes)
+                    {
+                        RestartAsAdmin();
+                        return;
+                    }
+                }
+                else
+                {
+                    installationAttempted = true;
+                    statusLabel.Text = "Downloading VC++ Redistributable...";
+
+                    await DownloadFileWithProgress(
+                        "https://aka.ms/vs/17/release/vc_redist.x64.exe",
+                        tempPath,
+                        progressBar
+                    );
+
+                    statusLabel.Text = "Installing VC++ Redistributable...";
+                    progressBar.Value = 75;
+
+                    var processInfo = new ProcessStartInfo
+                    {
+                        FileName = tempPath,
+                        Arguments = "/install /quiet /norestart",
+                        Verb = "runas",
+                        UseShellExecute = true,
+                        CreateNoWindow = true
+                    };
+
+                    using (var process = Process.Start(processInfo))
+                    {
+                        await process.WaitForExitAsync();
+                        if (process.ExitCode != 0)
+                        {
+                            throw new Exception($"Installation failed with code {process.ExitCode}");
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"VC++ Install Error: {ex.Message}");
+            MessageBox.Show($"Failed to install VC++ Redistributable: {ex.Message}",
+                           "Installation Error",
+                           MessageBoxButtons.OK,
+                           MessageBoxIcon.Error);
+        }
+        finally
+        {
+            settingsManager.MarkVCRedistChecked();
+
+            if (File.Exists(tempPath))
+                File.Delete(tempPath);
+
+            if (installationAttempted)
+            {
+                progressBar.Value = 90;
+                await Task.Delay(1000);
+                progressBar.Value = 0;
+            }
+        }
+    }
+
+    private bool IsVCRedistInstalled()
+    {
+        try
+        {
+            using (var key = Registry.LocalMachine.OpenSubKey(
+                @"SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64", false))
+            {
+                if (key?.GetValue("Version") is string version)
+                {
+                    var v = new Version(version.Split(' ')[0]);
+                    return v >= new Version(14, 0, 0);
+                }
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool IsAdministrator()
+    {
+        using (var identity = WindowsIdentity.GetCurrent())
+        {
+            var principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+    }
+
 
     private void UpdateAllStatus()
     {
@@ -517,9 +668,7 @@ del ""%~f0""
     {
         try
         {
-            updateButton.Enabled = false;
-            browseButton.Enabled = false;
-            changeVersionsButton.Enabled = false;
+            DisableAllControls();
             progressBar.Value = 0;
 
             statusLabel.Text = "Checking dll...";
@@ -804,6 +953,7 @@ del ""%~f0""
         }
         catch (Exception ex) when (IsAntivirusError(ex))
         {
+            _antivirusCheckPerformed = true;
             var result = MessageBox.Show(
                 "Your antivirus fucked HeatedMetal.7z, would you like the Manager to add a temporary exclusion and continue?",
                 "Antivirus shit",
@@ -876,11 +1026,28 @@ del ""%~f0""
 
     private async Task AddAntivirusExclusionAsync(string directoryPath)
     {
+        if (!_hasAdminRights)
+        {
+            var result = MessageBox.Show(
+                "This operation requires admin rights. Restart as administrator?",
+                "Elevation Required",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+            );
+
+            if (result == DialogResult.Yes)
+            {
+                RestartAsAdmin();
+                return;
+            }
+            throw new UnauthorizedAccessException("Admin rights required");
+        }
+
         var startInfo = new ProcessStartInfo
         {
             FileName = "powershell.exe",
             Arguments = $"-Command Add-MpPreference -ExclusionPath \"{directoryPath}\"",
-            Verb = "runas", // Requires admin privileges
+            Verb = "runas",
             UseShellExecute = true,
             CreateNoWindow = true
         };
@@ -893,6 +1060,20 @@ del ""%~f0""
 
         if (process.ExitCode != 0)
             throw new Exception($"Failed to add exclusion. Exit code: {process.ExitCode}");
+    }
+
+    private void RestartAsAdmin()
+    {
+        var exePath = Application.ExecutablePath;
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = exePath,
+            Verb = "runas",
+            UseShellExecute = true
+        });
+        settingsManager.SetGameDirectory("");
+        settingsManager.VCRedistChecked = false;
+        Application.Exit();
     }
 
     private async Task RemoveAntivirusExclusionAsync(string directoryPath)
