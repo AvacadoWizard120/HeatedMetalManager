@@ -548,6 +548,7 @@ del ""%~f0""
 
             statusLabel.Text = "Checking for updates...";
             var (currentTag, downloadUrl, releaseNotes) = await GetLatestReleaseInfo();
+            Debug.WriteLine("LATEST RELEASE: " + currentTag);
             var localVersion = fileInstaller?.GetLocalVersion();
             var isHeatedMetalInstalled = fileInstaller?.HasHeatedMetalInstalled() ?? false;
 
@@ -657,21 +658,26 @@ del ""%~f0""
     {
         string cachePath = Path.Combine(Path.GetTempPath(), "HeatedMetalReleaseCache.json");
 
+        Debug.WriteLine("GetLatestReleaseInfo()");
+
         // Attempt to use cached data if available
         if (File.Exists(cachePath))
         {
-            try
-            {
-                var cachedJson = File.ReadAllText(cachePath);
-                using var cachedDoc = JsonDocument.Parse(cachedJson);
-                var root = cachedDoc.RootElement;
-                return (
-                    root.GetProperty("tag_name").GetString()!,
-                    root.GetProperty("assets")[0].GetProperty("browser_download_url").GetString()!,
-                    root.GetProperty("body").GetString()!
-                );
-            }
-            catch { /* Ignore invalid cache */ }
+            File.Delete(cachePath);
+            // Debug.WriteLine("File.Exists(cachePath)");
+            // try
+            // {
+            //     var cachedJson = File.ReadAllText(cachePath);
+            //     using var cachedDoc = JsonDocument.Parse(cachedJson);
+            //     var root = cachedDoc.RootElement;
+            //     Debug.WriteLine("LATEST RELEASE: " + root.GetProperty("tag_name").GetString());
+            //     return (
+            //         root.GetProperty("tag_name").GetString()!,
+            //         root.GetProperty("assets")[0].GetProperty("browser_download_url").GetString()!,
+            //         root.GetProperty("body").GetString()!
+            //     );
+            // }
+            // catch { /* Ignore invalid cache */ }
         }
 
         // Fetch fresh data with authentication
@@ -706,6 +712,10 @@ del ""%~f0""
 
             using var doc = JsonDocument.Parse(responseBody);
             var root = doc.RootElement;
+            Debug.WriteLine("LATEST RELEASE: " + root.GetProperty("tag_name").GetString());
+            Debug.WriteLine("LATEST RELEASE: " + root.GetProperty("tag_name").GetString());
+            Debug.WriteLine("LATEST RELEASE: " + root.GetProperty("tag_name").GetString());
+            Debug.WriteLine("LATEST RELEASE: " + root.GetProperty("tag_name").GetString());
             return (
                 root.GetProperty("tag_name").GetString()!,
                 root.GetProperty("assets")[0].GetProperty("browser_download_url").GetString()!,
@@ -962,16 +972,28 @@ del ""%~f0""
 
     private void ProcessInlineStyles(RichTextBox rtb, string text)
     {
-        var matches = Regex.Matches(text, @"\*\*\*(.*?)\*\*\*");
+        var regex = new Regex(@"(\*\*\*(.*?)\*\*\*|\*\*(.*?)\*\*|\*(.*?)\*)");
         int lastIndex = 0;
-
-        foreach (Match match in matches)
+        foreach (Match match in regex.Matches(text))
         {
             rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Regular);
             rtb.AppendText(text.Substring(lastIndex, match.Index - lastIndex));
 
-            rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Bold | FontStyle.Italic);
-            rtb.AppendText(match.Groups[1].Value);
+            if (!string.IsNullOrEmpty(match.Groups[2].Value))
+            {
+                rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Bold | FontStyle.Italic);
+                rtb.AppendText(match.Groups[2].Value);
+            }
+            else if (!string.IsNullOrEmpty(match.Groups[3].Value))
+            {
+                rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Bold);
+                rtb.AppendText(match.Groups[3].Value);
+            }
+            else if (!string.IsNullOrEmpty(match.Groups[4].Value))
+            {
+                rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Italic);
+                rtb.AppendText(match.Groups[4].Value);
+            }
 
             lastIndex = match.Index + match.Length;
         }
