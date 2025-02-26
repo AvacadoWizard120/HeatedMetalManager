@@ -38,6 +38,8 @@ public partial class OuterForm : Form
     private TextBox savePathTextBox;
     private Button openExplorerButton;
 
+    private bool isHeliosPromptActive = false; // I'm just gonna go ahead and make this class level because this prompt is annoying and I'm lazy (efficient)
+
 
     public OuterForm()
     {
@@ -279,7 +281,7 @@ del ""%~f0""
         try
         {
             var (latestTag, downloadUrl, releaseNotes) = await GetLatestManagerVersion();
-            if (IsNewerVersion(latestTag, "0.7.1"))
+            if (IsNewerVersion(latestTag, "0.7.2"))
             {
                 var result = MessageBox.Show(
                     $"A new version of Heated Metal Manager ({latestTag}) is available!\n\n" +
@@ -1241,6 +1243,9 @@ del ""%~f0""
 
     private async Task SyncWithHeliosLoader()
     {
+        if (isHeliosPromptActive) return;
+        isHeliosPromptActive = true;
+
         if (!File.Exists(HeliosLoaderPath))
         {
             var result = MessageBox.Show(
@@ -1300,6 +1305,10 @@ del ""%~f0""
         catch (Exception ex)
         {
             MessageBox.Show($"Error syncing with HeliosLoader: {ex.Message}");
+        }
+        finally
+        {
+            isHeliosPromptActive = false;
         }
     }
 
