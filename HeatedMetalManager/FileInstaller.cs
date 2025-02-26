@@ -48,13 +48,18 @@ namespace HeatedMetalManager
                 return usingHMDLL;
             }
 
+            if (File.Exists(usingHMDLL))
+            {
+                return usingHMDLL;
+            }
+
             if (File.Exists(usingVanillaDLL))
             {
                 Debug.WriteLine("FOUND SHADOWLEGACY.DLL!!");
                 return usingVanillaDLL;
             }
 
-            return File.Exists(usingHMDLL) ? usingHMDLL : usingHMDLL;
+            return usingHMDLL;
         }
 
         public string GetLocalVersion()
