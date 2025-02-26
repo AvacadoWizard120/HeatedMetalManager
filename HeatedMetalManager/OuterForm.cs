@@ -278,7 +278,7 @@ del ""%~f0""
         try
         {
             var (latestTag, downloadUrl, releaseNotes) = await GetLatestManagerVersion();
-            if (IsNewerVersion(latestTag, "0.6.3"))
+            if (IsNewerVersion(latestTag, "0.7"))
             {
                 var result = MessageBox.Show(
                     $"A new version of Heated Metal Manager ({latestTag}) is available!\n\n" +
