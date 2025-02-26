@@ -1562,7 +1562,7 @@ del ""%~f0""
             {
                 if (!ShortcutManager.ShortcutExists(batPath))
                 {
-                    ShortcutManager.CreateShortcut(batPath, "Shadow Legacy bat.lnk");
+                    ShortcutManager.CreateShortcut(batPath, "Shadow Legacy bat");
                 }
             }
             else
@@ -1574,7 +1574,7 @@ del ""%~f0""
             {
                 if (!ShortcutManager.ShortcutExists(exePath))
                 {
-                    ShortcutManager.CreateShortcut(exePath, "Heated Metal exe.lnk");
+                    ShortcutManager.CreateShortcut(exePath, "Heated Metal exe");
                 }
             }
             else

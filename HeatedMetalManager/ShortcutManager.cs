@@ -1,51 +1,66 @@
-﻿using IWshRuntimeLibrary;
-
-namespace HeatedMetalManager
+﻿namespace HeatedMetalManager
 {
     public static class ShortcutManager
     {
         public static void CreateShortcut(string targetPath, string shortcutName)
         {
-            var shell = new WshShell();
-            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-            var shortcutPath = Path.Combine(desktop, shortcutName);
+            try
+            {
+                var shellType = Type.GetTypeFromProgID("WScript.Shell");
+                dynamic shell = Activator.CreateInstance(shellType);
+                string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                string shortcutPath = Path.Combine(desktop, $"{shortcutName}.lnk");
 
-            if (System.IO.File.Exists(shortcutPath)) return;
-
-            var shortcut = (IWshShortcut)shell.CreateShortcut(shortcutPath);
-            shortcut.TargetPath = targetPath;
-            shortcut.WorkingDirectory = Path.GetDirectoryName(targetPath);
-            shortcut.Save();
+                dynamic shortcut = shell.CreateShortcut(shortcutPath);
+                shortcut.TargetPath = targetPath;
+                shortcut.WorkingDirectory = Path.GetDirectoryName(targetPath);
+                shortcut.Save();
+            }
+            catch
+            {
+            }
         }
 
         public static bool ShortcutExists(string targetPath)
         {
-            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-            foreach (var file in Directory.GetFiles(desktop, "*.lnk"))
+            try
             {
-                var shell = new WshShell();
-                var shortcut = (IWshShortcut)shell.CreateShortcut(file);
-                if (shortcut.TargetPath.Equals(targetPath, StringComparison.OrdinalIgnoreCase))
-                    return true;
+                string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                foreach (var file in Directory.GetFiles(desktop, "*.lnk"))
+                {
+                    var shellType = Type.GetTypeFromProgID("WScript.Shell");
+                    dynamic shell = Activator.CreateInstance(shellType);
+                    dynamic shortcut = shell.CreateShortcut(file);
+
+                    if (shortcut.TargetPath.Equals(targetPath, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                return false;
             }
-            return false;
+            catch
+            {
+                return false;
+            }
         }
+
 
         public static void DeleteShortcut(string targetPath)
         {
-            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-            foreach (var file in Directory.GetFiles(desktop, "*.lnk"))
+            try
             {
-                try
+                string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                foreach (var file in Directory.GetFiles(desktop, "*.lnk"))
                 {
-                    var shell = new WshShell();
-                    var shortcut = (IWshShortcut)shell.CreateShortcut(file);
+                    var shellType = Type.GetTypeFromProgID("WScript.Shell");
+                    dynamic shell = Activator.CreateInstance(shellType);
+                    dynamic shortcut = shell.CreateShortcut(file);
+
                     if (shortcut.TargetPath.Equals(targetPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        System.IO.File.Delete(file);
-                    }
+                        File.Delete(file);
                 }
-                catch { /* Skip invalid shortcuts */ }
+            }
+            catch
+            {
             }
         }
 
