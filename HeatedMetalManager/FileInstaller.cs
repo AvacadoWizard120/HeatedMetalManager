@@ -230,7 +230,22 @@ namespace HeatedMetalManager
                 }
             }
 
-            throw new Exception("7-Zip not found. Required for extraction.");
+            var winrarPaths = new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WinRAR", "WinRAR.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "WinRAR", "WinRAR.exe")
+            };
+
+            foreach (var path in winrarPaths)
+            {
+                if (File.Exists(path))
+                {
+                    await RunExtractionTool(path, "x", archivePath, extractPath);
+                    return;
+                }
+            }
+
+            throw new Exception("Neither 7-Zip nor WinRAR found. Please install one of them.");
         }
 
         private async Task RunExtractionTool(string toolPath, string command, string archivePath, string outputPath)
