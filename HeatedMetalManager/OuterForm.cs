@@ -1213,18 +1213,6 @@ del ""%~f0""
         openExplorerButton = new Button { Text = "Open in Explorer", Location = new Point(10, 200), Width = 200 };
         openExplorerButton.Click += OpenExplorerButton_Click;
 
-        chkBatShortcut.CheckedChanged += (s, e) =>
-        {
-            settingsManager.CreateBatShortcut = chkBatShortcut.Checked;
-            HandleShortcuts();
-        };
-
-        chkExeShortcut.CheckedChanged += (s, e) =>
-        {
-            settingsManager.CreateExeShortcut = chkExeShortcut.Checked;
-            HandleShortcuts();
-        };
-
         vanillaProfileCheckbox = new CheckBox
         {
             Text = "Use specific profile for vanilla",
@@ -1263,6 +1251,19 @@ del ""%~f0""
         vanillaProfileCheckbox, vanillaProfileComboBox,
         chkBatShortcut, chkExeShortcut
         });
+
+
+        chkBatShortcut.CheckedChanged += (s, e) =>
+        {
+            settingsManager.CreateBatShortcut = chkBatShortcut.Checked;
+            HandleShortcuts();
+        };
+
+        chkExeShortcut.CheckedChanged += (s, e) =>
+        {
+            settingsManager.CreateExeShortcut = chkExeShortcut.Checked;
+            HandleShortcuts();
+        };
 
         usernameTextBox.LostFocus += (s, e) => SaveField(usernameButton, usernameTextBox);
         savePathTextBox.LostFocus += (s, e) => SaveField(savePathButton, savePathTextBox);
@@ -1561,7 +1562,7 @@ del ""%~f0""
             {
                 if (!ShortcutManager.ShortcutExists(batPath))
                 {
-                    ShortcutManager.CreateShortcut(batPath, "Shadow Legacy.lnk");
+                    ShortcutManager.CreateShortcut(batPath, "Shadow Legacy bat.lnk");
                 }
             }
             else
@@ -1573,7 +1574,7 @@ del ""%~f0""
             {
                 if (!ShortcutManager.ShortcutExists(exePath))
                 {
-                    ShortcutManager.CreateShortcut(exePath, "Heated Metal.lnk");
+                    ShortcutManager.CreateShortcut(exePath, "Heated Metal exe.lnk");
                 }
             }
             else
