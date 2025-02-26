@@ -5,6 +5,7 @@
 - Check for Heated Metal Updates/Auto update Heated Metal.
 - If LumaPlay is detected in your game directory the manager will remove LumaPlay and install Helios Loader.
 - **Swap** between vanilla Shadow Legacy and Heated Metal at the click of a button.
+- Manage your saves between Heated Metal and vanilla Shadow Legacy (HeliosLoader).
 
 
 ## How to use:
@@ -58,9 +59,3 @@
 
 ## Create Backups
 - Button to Backup maps/quirrel scripts (will be copied to Backups folder next to the HeatedMetalManager.exe)
-
-
-
-## Create/Swap settings profiles
-- _**Create New Profile**_ button && **_Profile Select_** dropdown with _**Swap To Profile**_ button.
-- So you can have different settings for Heated Metal and Vanilla if you want.
