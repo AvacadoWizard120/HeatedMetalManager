@@ -1,0 +1,45 @@
+name: .NET Desktop CI/CD
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  PROJECT_PATH: HeatedMetalManager.csproj
+  PUBLISH_OUTPUT_DIR: bin\Release\net9.0-windows10.0.26100.0\win-x64\publish
+
+jobs:
+  build-sign-package:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_PATH }}
+
+    - name: Publish Application
+      run: |
+        dotnet publish ${{ env.PROJECT_PATH }} -c Release -r win-x64 /p:PublishSingleFile=true
+
+    - name: Sign Executable (Self-Signed)
+      uses: windows-actions/sign-pfx@v1
+      with:
+        path: ${{ env.PUBLISH_OUTPUT_DIR }}\HeatedMetalManager.exe
+        pfx: ${{ secrets.Base64_Encoded_Pfx }}
+        password: ${{ secrets.Pfx_Key }}
+        timestamp_url: http://timestamp.digicert.com
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Release-Build
+        path: ${{ env.PUBLISH_OUTPUT_DIR }}\HeatedMetalManager.exe
