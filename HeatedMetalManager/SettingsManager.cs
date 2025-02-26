@@ -15,6 +15,9 @@ namespace HeatedMetalManager
         public bool IsInitialSync { get; set; } = true;
 
         public bool VCRedistChecked { get; set; }
+
+        public bool CreateBatShortcut { get; set; }
+        public bool CreateExeShortcut { get; set; }
     }
 
     public class SettingsManager
@@ -39,6 +42,26 @@ namespace HeatedMetalManager
         public void MarkVCRedistChecked()
         {
             VCRedistChecked = true;
+        }
+
+        public bool CreateBatShortcut
+        {
+            get => currentSettings.CreateBatShortcut;
+            set
+            {
+                currentSettings.CreateBatShortcut = value;
+                SaveSettings();
+            }
+        }
+
+        public bool CreateExeShortcut
+        {
+            get => currentSettings.CreateExeShortcut;
+            set
+            {
+                currentSettings.CreateExeShortcut = value;
+                SaveSettings();
+            }
         }
 
 

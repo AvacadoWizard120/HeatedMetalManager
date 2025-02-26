@@ -40,6 +40,9 @@ public partial class OuterForm : Form
     private TextBox savePathTextBox;
     private Button openExplorerButton;
 
+    private CheckBox chkBatShortcut;
+    private CheckBox chkExeShortcut;
+
     private bool isHeliosPromptActive = false; // I'm just gonna go ahead and make this class level because this prompt is annoying and I'm lazy (efficient)
 
     private bool _hasAdminRights;
@@ -386,6 +389,15 @@ del ""%~f0""
             DisplayReleaseNotes(releaseNotesTextBox, releaseNotes);
             var localVersion = fileInstaller?.GetLocalVersion();
             var isHeatedMetalInstalled = fileInstaller?.HasHeatedMetalInstalled() ?? false;
+
+            chkBatShortcut.Checked = settingsManager.CreateBatShortcut;
+            chkExeShortcut.Checked = settingsManager.CreateExeShortcut;
+
+            chkBatShortcut.CheckedChanged += (s, e) =>
+            settingsManager.CreateBatShortcut = chkBatShortcut.Checked;
+
+            chkExeShortcut.CheckedChanged += (s, e) =>
+                settingsManager.CreateExeShortcut = chkExeShortcut.Checked;
 
             UpdateAllStatus();
 
@@ -1201,6 +1213,18 @@ del ""%~f0""
         openExplorerButton = new Button { Text = "Open in Explorer", Location = new Point(10, 200), Width = 200 };
         openExplorerButton.Click += OpenExplorerButton_Click;
 
+        chkBatShortcut.CheckedChanged += (s, e) =>
+        {
+            settingsManager.CreateBatShortcut = chkBatShortcut.Checked;
+            HandleShortcuts();
+        };
+
+        chkExeShortcut.CheckedChanged += (s, e) =>
+        {
+            settingsManager.CreateExeShortcut = chkExeShortcut.Checked;
+            HandleShortcuts();
+        };
+
         vanillaProfileCheckbox = new CheckBox
         {
             Text = "Use specific profile for vanilla",
@@ -1215,6 +1239,20 @@ del ""%~f0""
             Enabled = false
         };
 
+        chkBatShortcut = new CheckBox
+        {
+            Text = "RainbowSix.bat Shortcut",
+            Location = new Point(10, 240),
+            Width = 200
+        };
+
+        chkExeShortcut = new CheckBox
+        {
+            Text = "RainbowSix.exe Shortcut",
+            Location = new Point(10, 260),
+            Width = 200
+        };
+
         vanillaProfileCheckbox.CheckedChanged += VanillaCheckbox_CheckedChanged;
         vanillaProfileComboBox.SelectedIndexChanged += VanillaCombo_SelectedIndexChanged;
 
@@ -1222,8 +1260,9 @@ del ""%~f0""
         profileTab.Controls.AddRange(new Control[] {
         profileLabel, profileComboBox, usernameButton, usernameTextBox,
         savePathButton, savePathTextBox, openExplorerButton,
-        vanillaProfileCheckbox, vanillaProfileComboBox
-    });
+        vanillaProfileCheckbox, vanillaProfileComboBox,
+        chkBatShortcut, chkExeShortcut
+        });
 
         usernameTextBox.LostFocus += (s, e) => SaveField(usernameButton, usernameTextBox);
         savePathTextBox.LostFocus += (s, e) => SaveField(savePathButton, savePathTextBox);
@@ -1352,6 +1391,7 @@ del ""%~f0""
         savePathButton.Text = $"Save Path: {profileConfig.SavePath}";
         LoadProfiles();
         UpdateVanillaProfileList();
+        HandleShortcuts();
     }
 
     private void LoadProfiles()
@@ -1505,6 +1545,45 @@ del ""%~f0""
         {
             usernameButton.Text = "Profile viewing only available through HeliosLoader";
             savePathButton.Text = "Profile viewing only available through HeliosLoader";
+        }
+    }
+
+    private void HandleShortcuts()
+    {
+        if (string.IsNullOrEmpty(gameDirectory)) return;
+
+        try
+        {
+            var batPath = Path.Combine(gameDirectory, "RainbowSix.bat");
+            var exePath = Path.Combine(gameDirectory, "RainbowSix.exe");
+
+            if (settingsManager.CreateBatShortcut && File.Exists(batPath))
+            {
+                if (!ShortcutManager.ShortcutExists(batPath))
+                {
+                    ShortcutManager.CreateShortcut(batPath, "Shadow Legacy.lnk");
+                }
+            }
+            else
+            {
+                ShortcutManager.DeleteShortcut(batPath);
+            }
+
+            if (settingsManager.CreateExeShortcut && File.Exists(exePath))
+            {
+                if (!ShortcutManager.ShortcutExists(exePath))
+                {
+                    ShortcutManager.CreateShortcut(exePath, "Heated Metal.lnk");
+                }
+            }
+            else
+            {
+                ShortcutManager.DeleteShortcut(exePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Shortcut operation failed: {ex.Message}");
         }
     }
 }
