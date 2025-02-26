@@ -6,6 +6,7 @@
 - If LumaPlay is detected in your game directory the manager will remove LumaPlay and install Helios Loader.
 - **Swap** between vanilla Shadow Legacy and Heated Metal at the click of a button.
 - Manage your saves between Heated Metal and vanilla Shadow Legacy (HeliosLoader).
+- View Heated Metal release notes in-app.
 
 
 ## How to use:
@@ -30,9 +31,7 @@
 
 5. **Peep the info:**
 
-- **Currently installed** will check the **_version.txt_** file for the GitHub release tag that you have in your game. If you do not have a version.txt in your root game directory, it will download the latest update and create a version.txt for you. If you know what version you're on, just create your own version.txt and put the GitHub release tag in there.
-![image](https://github.com/user-attachments/assets/d54aba02-bde9-42e1-a967-ea0d7620061d)
-
+- **Currently installed** will check which version of HeatedMetal you have installed locally.
 
 ![image](https://github.com/user-attachments/assets/c1add5d1-afa5-4961-9046-3cc1f56bd259)
 
@@ -59,3 +58,6 @@
 
 ## Create Backups
 - Button to Backup maps/quirrel scripts (will be copied to Backups folder next to the HeatedMetalManager.exe)
+
+## Assembly optimizations
+- No longer package .NET 9 in assembly
