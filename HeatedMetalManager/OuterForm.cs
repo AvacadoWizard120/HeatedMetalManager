@@ -277,7 +277,7 @@ del ""%~f0""
                 UseShellExecute = false
             });
 
-            Application.Exit();
+            Environment.Exit(0);
         }
         catch (Exception ex)
         {
@@ -548,19 +548,29 @@ del ""%~f0""
     {
         try
         {
-            using (var key = Registry.LocalMachine.OpenSubKey(
-                @"SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64", false))
+            using (var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+            using (var key = baseKey.OpenSubKey(@"SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64", false))
             {
-                if (key?.GetValue("Version") is string version)
+                if (key?.GetValue("Version") is string versionStr)
                 {
-                    var v = new Version(version.Split(' ')[0]);
-                    return v >= new Version(14, 0, 0);
+                    var versionParts = versionStr.Split('.');
+                    var major = int.Parse(versionParts[0]);
+                    var minor = int.Parse(versionParts[1]);
+                    var build = int.Parse(versionParts[2]);
+
+                    if (major >= 14)
+                    {
+                        Debug.WriteLine($"VC++ Redist Version Found: {versionStr}");
+                        return true;
+                    }
                 }
             }
+            Debug.WriteLine("VC++ Redist registry key not found or version < 14");
             return false;
         }
-        catch
+        catch (Exception ex)
         {
+            Debug.WriteLine($"Error checking VC++ Redist: {ex.Message}");
             return false;
         }
     }
@@ -1085,7 +1095,7 @@ del ""%~f0""
         });
         settingsManager.SetGameDirectory("");
         settingsManager.VCRedistChecked = false;
-        Application.Exit();
+        Environment.Exit(0);
     }
 
     private async Task RemoveAntivirusExclusionAsync(string directoryPath)
