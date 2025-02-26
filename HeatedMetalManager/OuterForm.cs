@@ -458,7 +458,11 @@ del ""%~f0""
 
     private async Task CheckAndInstallVCRedist()
     {
-        if (settingsManager.VCRedistChecked) return;
+        if (IsVCRedistInstalled())
+        {
+            Debug.WriteLine("VC++ Redist already installed");
+            return;
+        }
 
         DisableAllControls();
 
@@ -553,19 +557,17 @@ del ""%~f0""
             {
                 if (key?.GetValue("Version") is string versionStr)
                 {
-                    var versionParts = versionStr.Split('.');
-                    var major = int.Parse(versionParts[0]);
-                    var minor = int.Parse(versionParts[1]);
-                    var build = int.Parse(versionParts[2]);
+                    versionStr = versionStr.Trim().TrimStart('v', 'V', ' ');
+                    var versionParts = versionStr.Split('.', StringSplitOptions.RemoveEmptyEntries);
 
-                    if (major >= 14)
+                    if (versionParts.Length >= 1 && int.TryParse(versionParts[0], out int majorVersion))
                     {
-                        Debug.WriteLine($"VC++ Redist Version Found: {versionStr}");
-                        return true;
+                        Debug.WriteLine($"Detected VC++ Redist Major Version: {majorVersion}");
+                        return majorVersion >= 14;
                     }
                 }
             }
-            Debug.WriteLine("VC++ Redist registry key not found or version < 14");
+            Debug.WriteLine("VC++ Redist registry key not found or invalid format");
             return false;
         }
         catch (Exception ex)
