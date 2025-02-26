@@ -204,7 +204,7 @@ namespace HeatedMetalManager
 
                 if (totalBytes > 0)
                 {
-                    var progressPercent = (int)((totalBytesRead * 50) / totalBytes); // First half for download
+                    var progressPercent = (int)((totalBytesRead * 50) / totalBytes);
                     progress?.Report(progressPercent);
                 }
             }

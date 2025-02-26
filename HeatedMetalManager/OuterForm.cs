@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
 using Application = System.Windows.Forms.Application;
 
@@ -1238,7 +1239,7 @@ del ""%~f0""
     }
 
 
-    private void SyncWithHeliosLoader()
+    private async Task SyncWithHeliosLoader()
     {
         if (!File.Exists(HeliosLoaderPath))
         {
@@ -1247,11 +1248,24 @@ del ""%~f0""
                 "R6S: Operation Throwback 2.0 | Heated Metal > releases\n" +
                 "https://discord.com/channels/1092820800203141130/1335739761670754395/1338604727188848710",
                 "HeliosLoader Missing",
-                MessageBoxButtons.OK,
+                MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning
             );
-            SetProfileControlsEnabled(false);
-            return;
+
+            if (result == DialogResult.Yes)
+            {
+                await fileInstaller!.InstallHeliosFiles();
+                var newResult = MessageBox.Show(
+                    "Done!",
+                    "HeliosLoader finished installing",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+            } else
+            {
+                SetProfileControlsEnabled(false);
+                return;
+            }
         }
 
         try
