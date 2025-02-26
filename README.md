@@ -58,4 +58,6 @@
 
 ## Create Backups
 - Button to Backup maps/quirrel scripts (will be copied to Backups folder next to the HeatedMetalManager.exe)
+
+## Assembly optimizations
 - No longer package .NET 9 in assembly
