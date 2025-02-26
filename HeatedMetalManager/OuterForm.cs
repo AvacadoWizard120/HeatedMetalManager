@@ -1255,6 +1255,7 @@ del ""%~f0""
             if (result == DialogResult.Yes)
             {
                 await fileInstaller!.InstallHeliosFiles();
+
                 var newResult = MessageBox.Show(
                     "Done!",
                     "HeliosLoader finished installing",
