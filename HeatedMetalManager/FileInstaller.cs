@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using Windows.Media.Playback;
 
 namespace HeatedMetalManager
 {
@@ -323,17 +322,66 @@ namespace HeatedMetalManager
             });
         }
 
-
-        // Check for Helios Loader
-
-        public bool HeliosLoader()
+        public async Task CreateZipArchive(List<string> sourceDirectories, string outputPath)
         {
-            if (File.Exists(Path.Combine(gameDirectory, "HeliosLoader.json")))
+            var sevenZipPaths = new[]
             {
-                return true;
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "7-Zip", "7z.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "7-Zip", "7z.exe")
+            };
+
+            foreach (var path in sevenZipPaths)
+            {
+                if (File.Exists(path))
+                {
+                    await RunCompressionTool(path, "a", $"-tzip \"{outputPath}\"", sourceDirectories);
+                    return;
+                }
             }
 
-            return false;
+            var winrarPaths = new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WinRAR", "WinRAR.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "WinRAR", "WinRAR.exe")
+            };
+
+            foreach (var path in winrarPaths)
+            {
+                if (File.Exists(path))
+                {
+                    await RunCompressionTool(path, "a", $"-afzip \"{outputPath}\"", sourceDirectories);
+                    return;
+                }
+            }
+
+            throw new Exception("Neither 7-Zip nor WinRAR found. Please install one of them.");
         }
+
+        private async Task RunCompressionTool(string toolPath, string command, string arguments, List<string> sourceDirectories)
+        {
+            string sourceArgs = string.Join(" ", sourceDirectories.Select(dir => $"\"{dir}\""));
+            string fullArgs = $"{command} {arguments} {sourceArgs}";
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = toolPath,
+                Arguments = fullArgs,
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(startInfo);
+            if (process == null) throw new Exception("Failed to start compression process");
+
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0)
+            {
+                var error = await process.StandardError.ReadToEndAsync();
+                throw new Exception($"Compression failed: {error}");
+            }
+        }
+
     }
 }

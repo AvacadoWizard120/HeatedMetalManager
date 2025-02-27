@@ -1225,6 +1225,14 @@ del ""%~f0""
         openExplorerButton = new Button { Text = "Open in Explorer", Location = new Point(10, 200), Width = 200 };
         openExplorerButton.Click += OpenExplorerButton_Click;
 
+        Button backupButton = new Button
+        {
+            Text = "Backup",
+            Location = new Point(10, 230),
+            Width = 200
+        };
+        backupButton.Click += BackupButton_Click;
+
         vanillaProfileCheckbox = new CheckBox
         {
             Text = "Use specific profile for vanilla",
@@ -1242,14 +1250,14 @@ del ""%~f0""
         chkBatShortcut = new CheckBox
         {
             Text = "RainbowSix.bat Shortcut",
-            Location = new Point(10, 240),
+            Location = new Point(10, 280),
             Width = 200
         };
 
         chkExeShortcut = new CheckBox
         {
             Text = "RainbowSix.exe Shortcut",
-            Location = new Point(10, 260),
+            Location = new Point(10, 300),
             Width = 200
         };
 
@@ -1261,7 +1269,7 @@ del ""%~f0""
         profileLabel, profileComboBox, usernameButton, usernameTextBox,
         savePathButton, savePathTextBox, openExplorerButton,
         vanillaProfileCheckbox, vanillaProfileComboBox,
-        chkBatShortcut, chkExeShortcut
+        chkBatShortcut, chkExeShortcut, backupButton
         });
 
 
@@ -1599,4 +1607,53 @@ del ""%~f0""
             Debug.WriteLine($"Shortcut operation failed: {ex.Message}");
         }
     }
+
+    private async void BackupButton_Click(object sender, EventArgs e)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(gameDirectory) || fileInstaller == null)
+            {
+                MessageBox.Show("Game directory not set.", "Backup Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var directoriesToBackup = new List<string>();
+
+            string savePath = Path.Combine(gameDirectory, profileConfig.SavePath);
+            if (Directory.Exists(savePath))
+                directoriesToBackup.Add(savePath);
+
+            string heatedMetalDir = Path.Combine(gameDirectory, "HeatedMetal");
+            string[] subDirs = { "Maps", "Scripts", "Saves", "Quirrel" };
+            foreach (var dir in subDirs)
+            {
+                string fullPath = Path.Combine(heatedMetalDir, dir);
+                if (Directory.Exists(fullPath))
+                    directoriesToBackup.Add(fullPath);
+            }
+
+            if (directoriesToBackup.Count == 0)
+            {
+                MessageBox.Show("No directories found to backup.", "Backup Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string assemblyDir = fileInstaller.GetAssemblyDirectory();
+            string backupsDir = Path.Combine(assemblyDir, "Backups");
+            Directory.CreateDirectory(backupsDir);
+
+            string timestamp = DateTime.Now.ToString("-yyyy-MM-dd-HH-mm-ss");
+            string backupPath = Path.Combine(backupsDir, $"HMBackup{timestamp}.zip");
+
+            await fileInstaller.CreateZipArchive(directoriesToBackup, backupPath);
+
+            MessageBox.Show($"Backup created at:\n{backupPath}", "Backup Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Backup failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
 }
