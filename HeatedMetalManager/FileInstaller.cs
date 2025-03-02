@@ -150,14 +150,14 @@ namespace HeatedMetalManager
 
         public async Task InstallPlazaFiles()
         {
-            await DownloadAndInstallPackage(PlazaDownloadUrl, gameDirectory);
+            await DownloadAndInstallPackage(PlazaDownloadUrl, "");
             await InstallHeliosFiles();
 
         }
 
         public async Task InstallHeliosFiles()
         {
-            await DownloadAndInstallPackage(HeliosDownloadUrl, gameDirectory);
+            await DownloadAndInstallPackage(HeliosDownloadUrl, "");
         }
 
         private async Task DownloadAndInstallPackage(string downloadUrl, string packageName)
