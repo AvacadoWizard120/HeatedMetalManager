@@ -40,6 +40,8 @@ public partial class OuterForm : Form
     private TextBox savePathTextBox;
     private Button openExplorerButton;
 
+    private Button saveProfileButton;
+
     private CheckBox chkBatShortcut;
     private CheckBox chkExeShortcut;
 
@@ -52,10 +54,10 @@ public partial class OuterForm : Form
     public OuterForm()
     {
         this.AutoScaleMode = AutoScaleMode.None;
+        settingsManager = new SettingsManager();
         InitializeComponent();
         Icon = Icon.ExtractAssociatedIcon(System.Windows.Forms.Application.ExecutablePath);
         httpClient.DefaultRequestHeaders.Add("User-Agent", "HeatedMetalManager");
-        settingsManager = new SettingsManager();
         _hasAdminRights = IsAdministrator();
         _antivirusCheckPerformed = false;
         DisableAllControls();
@@ -627,7 +629,7 @@ del ""%~f0""
             vanillaProfileComboBox.SelectedItem = settingsManager.VanillaProfile;
         }
 
-        if (!fileInstaller.IsUsingHeatedMetal() && settingsManager.VanillaProfileEnabled)
+        if (!fileInstaller.IsUsingHeatedMetal() && settingsManager.VanillaProfileEnabled && settingsManager.IsAutoSaveEnabled)
         {
             SyncWithHeliosLoader();
         }
@@ -1225,6 +1227,9 @@ del ""%~f0""
         openExplorerButton = new Button { Text = "Open in Explorer", Location = new Point(10, 200), Width = 200 };
         openExplorerButton.Click += OpenExplorerButton_Click;
 
+        saveProfileButton = new Button { Text = "Save Profile", Location = new Point(200, 200), Width = 200 };
+        saveProfileButton.Click += SaveProfile_Click;
+
         Button backupButton = new Button
         {
             Text = "Backup",
@@ -1264,14 +1269,24 @@ del ""%~f0""
         vanillaProfileCheckbox.CheckedChanged += VanillaCheckbox_CheckedChanged;
         vanillaProfileComboBox.SelectedIndexChanged += VanillaCombo_SelectedIndexChanged;
 
-
-        profileTab.Controls.AddRange(new Control[] {
-        profileLabel, profileComboBox, usernameButton, usernameTextBox,
-        savePathButton, savePathTextBox, openExplorerButton,
-        vanillaProfileCheckbox, vanillaProfileComboBox,
-        chkBatShortcut, chkExeShortcut, backupButton
-        });
-
+        if (!settingsManager.IsAutoSaveEnabled)
+        {
+            profileTab.Controls.AddRange(new Control[] {
+            profileLabel, profileComboBox, usernameButton, usernameTextBox,
+            savePathButton, savePathTextBox, openExplorerButton,
+            vanillaProfileCheckbox, vanillaProfileComboBox,
+            chkBatShortcut, chkExeShortcut, backupButton,
+            saveProfileButton
+            });
+        } else
+        {
+            profileTab.Controls.AddRange(new Control[] {
+            profileLabel, profileComboBox, usernameButton, usernameTextBox,
+            savePathButton, savePathTextBox, openExplorerButton,
+            vanillaProfileCheckbox, vanillaProfileComboBox,
+            chkBatShortcut, chkExeShortcut, backupButton
+            });
+        }
 
         chkBatShortcut.CheckedChanged += (s, e) =>
         {
@@ -1534,14 +1549,17 @@ del ""%~f0""
             }
             else
             {
-                heliosConfig.Username = profileConfig.Username;
-                heliosConfig.ProfileID = profileConfig.ProfileID;
-                heliosConfig.SavePath = profileConfig.SavePath;
-                heliosConfig.ProductID = profileConfig.ProductID;
-                heliosConfig.Email = $"{profileConfig.Username}@ubisoft.com";
+                if (settingsManager.IsAutoSaveEnabled)
+                {
+                    heliosConfig.Username = profileConfig.Username;
+                    heliosConfig.ProfileID = profileConfig.ProfileID;
+                    heliosConfig.SavePath = profileConfig.SavePath;
+                    heliosConfig.ProductID = profileConfig.ProductID;
+                    heliosConfig.Email = $"{profileConfig.Username}@ubisoft.com";
 
-                File.WriteAllText(HeliosLoaderPath,
-                    JsonSerializer.Serialize(heliosConfig, new JsonSerializerOptions { WriteIndented = true }));
+                    File.WriteAllText(HeliosLoaderPath,
+                        JsonSerializer.Serialize(heliosConfig, new JsonSerializerOptions { WriteIndented = true }));
+                }
             }
         }
         catch (Exception ex)
@@ -1606,6 +1624,22 @@ del ""%~f0""
         {
             Debug.WriteLine($"Shortcut operation failed: {ex.Message}");
         }
+    }
+
+    private async void SaveProfile_Click(object sender, EventArgs e)
+    {
+        var heliosJson = File.ReadAllText(HeliosLoaderPath);
+        var heliosConfig = JsonSerializer.Deserialize<HeliosConfig>(heliosJson);
+
+
+        heliosConfig.Username = profileConfig.Username;
+        heliosConfig.ProfileID = profileConfig.ProfileID;
+        heliosConfig.SavePath = profileConfig.SavePath;
+        heliosConfig.ProductID = profileConfig.ProductID;
+        heliosConfig.Email = $"{profileConfig.Username}@ubisoft.com";
+
+        File.WriteAllText(HeliosLoaderPath,
+            JsonSerializer.Serialize(heliosConfig, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     private async void BackupButton_Click(object sender, EventArgs e)

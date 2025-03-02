@@ -18,6 +18,8 @@ namespace HeatedMetalManager
 
         public bool CreateBatShortcut { get; set; }
         public bool CreateExeShortcut { get; set; }
+
+        public bool AutoSaveProfileConfig { get; set; } = false;
     }
 
     public class SettingsManager
@@ -27,6 +29,8 @@ namespace HeatedMetalManager
         private UserSettings currentSettings;
 
         public bool VanillaProfileEnabled => currentSettings.UseVanillaProfile;
+
+        public bool IsAutoSaveEnabled => currentSettings.AutoSaveProfileConfig;
         public string? VanillaProfile => currentSettings.VanillaProfile;
 
         public bool VCRedistChecked
@@ -131,16 +135,11 @@ namespace HeatedMetalManager
             SaveSettings();
         }
 
-        public bool IsVanilla() => currentSettings.IsVanilla;
-
         public void ChangeVersions(bool isVanilla)
         {
             currentSettings.IsVanilla = isVanilla;
             SaveSettings();
         }
-
-
-        public bool UsingVanilla => currentSettings.UsingVanilla;
 
         public void SetUsingVanilla(bool usingVanilla)
         {
