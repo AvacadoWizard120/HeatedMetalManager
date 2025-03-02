@@ -50,6 +50,8 @@ public partial class OuterForm : Form
     private bool _hasAdminRights;
     private bool _antivirusCheckPerformed;
 
+    private TabPage profileTab;
+
 
     public OuterForm()
     {
@@ -170,7 +172,7 @@ public partial class OuterForm : Form
 
 
         TabPage mainTab = new TabPage("Main");
-        TabPage profileTab = new TabPage("Profile Manager");
+        profileTab = new TabPage("Profile Manager");
 
         mainTab.Controls.AddRange(new Control[] {
                 dirLabel, dirTextBox, browseButton,
@@ -661,6 +663,7 @@ del ""%~f0""
 
     private async void BrowseButton_Click(object? sender, EventArgs e)
     {
+        settingsManager.IsInitialSync = true;
         using var dialog = new FolderBrowserDialog
         {
             Description = "Select Game Directory"
@@ -674,6 +677,11 @@ del ""%~f0""
                 gameDirectory = dialog.SelectedPath;
                 dirTextBox.Text = gameDirectory;
                 settingsManager.SetGameDirectory(gameDirectory);
+
+                profileConfig = new GameProfileConfig();
+                LoadProfileConfig();
+                UpdateProfileUI();
+                SyncWithHeliosLoader();
 
                 var progress = new Progress<int>(value => progressBar.Value = value);
                 fileInstaller = new FileInstaller(gameDirectory, httpClient, progress);
@@ -1208,7 +1216,7 @@ del ""%~f0""
     private ComboBox vanillaProfileComboBox;
 
     private GameProfileConfig profileConfig = new GameProfileConfig();
-    private string ProfileConfigPath => Path.Combine(fileInstaller.GetAssemblyDirectory(), "ProfileConfig.json");
+    private string ProfileConfigPath => Path.Combine(gameDirectory, "ProfileConfig.json");
 
     private void InitializeProfileTab(TabPage profileTab)
     {
@@ -1348,6 +1356,9 @@ del ""%~f0""
 
     private void LoadProfileConfig()
     {
+        string legacyConfigPath = Path.Combine(fileInstaller.GetAssemblyDirectory(), "ProfileConfig.json");
+        if (File.Exists(legacyConfigPath)) File.Delete(legacyConfigPath);
+
         if (File.Exists(ProfileConfigPath))
         {
             try
@@ -1358,17 +1369,15 @@ del ""%~f0""
             catch { /* existing error handling */ }
         }
 
-        if (settingsManager.IsInitialSync)
-        {
-            SyncWithHeliosLoader();
-            settingsManager.IsInitialSync = false;
-        }
-
         if (string.IsNullOrEmpty(profileConfig.SavePath))
         {
             profileConfig.SavePath = "SAVE_GAMES";
             SaveProfileConfig();
         }
+
+        SyncWithHeliosLoader().Wait();
+        UpdateVanillaProfileList();
+        LoadProfiles();
     }
 
     private void SaveProfileConfig()
