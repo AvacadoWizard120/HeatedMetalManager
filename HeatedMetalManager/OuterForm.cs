@@ -1147,7 +1147,13 @@ del ""%~f0""
     private void DisplayReleaseNotes(RichTextBox textBox, string markdown)
     {
         textBox.Clear();
-        textBox.SelectionFont = textBox.Font;
+        textBox.DetectUrls = true;
+        var defaultFont = textBox.Font;
+        var currentFont = defaultFont;
+        var indentLevel = 0;
+        var inCodeBlock = false;
+        var inBlockquote = false;
+        var codeFont = new System.Drawing.Font("Consolas", 10f);
 
         string[] lines = markdown.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
 
@@ -1155,67 +1161,145 @@ del ""%~f0""
         {
             var trimmedLine = line.Trim();
 
-            if (trimmedLine.StartsWith("# - "))
+            if (inCodeBlock)
             {
-                textBox.SelectionFont = new System.Drawing.Font(textBox.Font.FontFamily, 12, FontStyle.Bold);
-                textBox.AppendText(trimmedLine.Substring(3).Trim() + "\n\n");
-            }
-            else if (trimmedLine.StartsWith("- "))
-            {
-                textBox.SelectionIndent = 15;
-                textBox.SelectionBullet = true;
+                if (trimmedLine.StartsWith("```"))
+                {
+                    inCodeBlock = false;
+                    currentFont = defaultFont;
+                    textBox.AppendText("\n");
+                    continue;
+                }
 
-                ProcessInlineStyles(textBox, line.Substring(2).Trim());
-
-                textBox.SelectionBullet = false;
-                textBox.SelectionIndent = 0;
-            }
-            else if (trimmedLine.Contains("***"))
-            {
-                ProcessInlineStyles(textBox, line);
-            }
-            else
-            {
-                textBox.SelectionFont = new System.Drawing.Font(textBox.Font, FontStyle.Regular);
+                textBox.SelectionFont = codeFont;
                 textBox.AppendText(line + "\n");
+                continue;
             }
+
+            if (trimmedLine.StartsWith("```"))
+            {
+                inCodeBlock = true;
+                currentFont = codeFont;
+                continue;
+            }
+
+            if (trimmedLine.StartsWith("> "))
+            {
+                if (!inBlockquote)
+                {
+                    inBlockquote = true;
+                    textBox.SelectionIndent += 20;
+                    currentFont = new System.Drawing.Font(defaultFont, FontStyle.Italic);
+                }
+                textBox.AppendText(trimmedLine.Substring(2).Trim() + "\n");
+                continue;
+            }
+            else if (inBlockquote)
+            {
+                inBlockquote = false;
+                textBox.SelectionIndent -= 20;
+                currentFont = defaultFont;
+            }
+
+            if (Regex.IsMatch(trimmedLine, @"^#+ "))
+            {
+                var headerMatch = Regex.Match(trimmedLine, @"^(#+) (.*)");
+                if (headerMatch.Success)
+                {
+                    var headerLevel = headerMatch.Groups[1].Value.Length;
+                    var headerText = headerMatch.Groups[2].Value;
+
+                    currentFont = new System.Drawing.Font(defaultFont.FontFamily,
+                        defaultFont.Size + (6 - headerLevel),
+                        FontStyle.Bold);
+
+                    textBox.AppendText(headerText + "\n\n");
+                    currentFont = defaultFont;
+                    continue;
+                }
+            }
+
+            if (Regex.IsMatch(trimmedLine, @"^[\*\+-] (.*)") || Regex.IsMatch(trimmedLine, @"^\d+\. (.*)"))
+            {
+                textBox.SelectionIndent += 15;
+                textBox.SelectionBullet = true;
+                currentFont = defaultFont;
+
+                var listItem = Regex.Replace(trimmedLine, @"^[\*\+-]\s|^\d+\.\s", "");
+                ProcessInlineStyles(textBox, listItem);
+
+                textBox.AppendText("\n");
+                textBox.SelectionBullet = false;
+                textBox.SelectionIndent -= 15;
+                continue;
+            }
+
+            if (Regex.IsMatch(trimmedLine, @"^[-*_]{3,}$"))
+            {
+                textBox.AppendText(new string('-', 50) + "\n");
+                continue;
+            }
+
+            ProcessInlineStyles(textBox, line.TrimEnd());
+            textBox.AppendText("\n");
         }
 
         textBox.SelectionStart = 0;
+        textBox.ScrollToCaret();
     }
 
     private void ProcessInlineStyles(RichTextBox rtb, string text)
     {
-        var regex = new Regex(@"(\*\*\*(.*?)\*\*\*|\*\*(.*?)\*\*|\*(.*?)\*)");
-        int lastIndex = 0;
-        foreach (Match match in regex.Matches(text))
+        var patterns = new Dictionary<FontStyle, string>
+    {
+        { FontStyle.Bold, @"\*\*(.*?)\*\*" },
+        { FontStyle.Italic, @"\*(.*?)\*" },
+        { FontStyle.Underline, @"__(.*?)__" },
+        { FontStyle.Strikeout, @"~~(.*?)~~" },
+        { FontStyle.Bold | FontStyle.Italic, @"\*\*\*(.*?)\*\*\*" }
+    };
+
+        var matches = new List<Tuple<int, int, FontStyle, string>>();
+
+        foreach (var pattern in patterns)
         {
-            rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Regular);
-            rtb.AppendText(text.Substring(lastIndex, match.Index - lastIndex));
+            var regex = new Regex(pattern.Value);
+            var matchCollection = regex.Matches(text);
 
-            if (!string.IsNullOrEmpty(match.Groups[2].Value))
+            foreach (Match match in matchCollection)
             {
-                rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Bold | FontStyle.Italic);
-                rtb.AppendText(match.Groups[2].Value);
+                matches.Add(Tuple.Create(
+                    match.Index,
+                    match.Index + match.Length,
+                    pattern.Key,
+                    match.Groups[1].Value
+                ));
             }
-            else if (!string.IsNullOrEmpty(match.Groups[3].Value))
-            {
-                rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Bold);
-                rtb.AppendText(match.Groups[3].Value);
-            }
-            else if (!string.IsNullOrEmpty(match.Groups[4].Value))
-            {
-                rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Italic);
-                rtb.AppendText(match.Groups[4].Value);
-            }
-
-            lastIndex = match.Index + match.Length;
         }
 
-        rtb.SelectionFont = new System.Drawing.Font(rtb.Font, FontStyle.Regular);
-        rtb.AppendText(text.Substring(lastIndex) + "\n");
-    }
+        matches = matches.OrderBy(m => m.Item1).ToList();
 
+        int lastPos = 0;
+        foreach (var match in matches)
+        {
+            if (match.Item1 > lastPos)
+            {
+                rtb.SelectionFont = rtb.Font;
+                rtb.AppendText(text.Substring(lastPos, match.Item1 - lastPos));
+            }
+
+            rtb.SelectionFont = new System.Drawing.Font(rtb.Font, match.Item3);
+            rtb.AppendText(match.Item4);
+
+            lastPos = match.Item2;
+        }
+
+        if (lastPos < text.Length)
+        {
+            rtb.SelectionFont = rtb.Font;
+            rtb.AppendText(text.Substring(lastPos));
+        }
+    }
 
 
     // Profile Management for HeliosLoader
