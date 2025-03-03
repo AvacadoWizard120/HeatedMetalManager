@@ -295,7 +295,7 @@ del ""%~f0""
         try
         {
             var (latestTag, downloadUrl, releaseNotes) = await GetLatestManagerVersion();
-            if (IsNewerVersion(latestTag, "0.9.2"))
+            if (IsNewerVersion(latestTag, "0.9.3"))
             {
                 var result = MessageBox.Show(
                     $"A new version of Heated Metal Manager ({latestTag}) is available!\n\n" +
@@ -561,22 +561,32 @@ del ""%~f0""
             {
                 if (key?.GetValue("Version") is string versionStr)
                 {
-                    versionStr = versionStr.Trim().TrimStart('v', 'V', ' ');
-                    var versionParts = versionStr.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                    Debug.WriteLine($"Raw VC++ Version String: {versionStr}");
 
-                    if (versionParts.Length >= 1 && int.TryParse(versionParts[0], out int majorVersion))
+                    string cleanedVersion = Regex.Replace(versionStr, "[^0-9.]", "");
+                    var versionParts = cleanedVersion.Split('.');
+
+                    if (versionParts.Length >= 2 &&
+                        int.TryParse(versionParts[0], out int major) &&
+                        int.TryParse(versionParts[1], out int minor))
                     {
-                        Debug.WriteLine($"Detected VC++ Redist Major Version: {majorVersion}");
-                        return majorVersion >= 14;
+                        int versionInt = major * 100 + minor;
+                        Debug.WriteLine($"Parsed VC++ Version: {versionInt}");
+
+                        return versionInt >= 1400;
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"Failed to parse version parts: {cleanedVersion}");
                     }
                 }
             }
-            Debug.WriteLine("VC++ Redist registry key not found or invalid format");
+            Debug.WriteLine("VC++ Redist not found or version invalid");
             return false;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error checking VC++ Redist: {ex.Message}");
+            Debug.WriteLine($"VC++ Check Error: {ex.Message}");
             return false;
         }
     }
