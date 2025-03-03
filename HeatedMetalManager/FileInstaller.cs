@@ -211,7 +211,7 @@ namespace HeatedMetalManager
 
         private async Task ExtractPackage(string archivePath, string packageName)
         {
-            var extractPath = Path.Combine(gameDirectory, packageName);
+            var extractPath = Path.Combine(gameDirectory);
             Directory.CreateDirectory(extractPath);
 
             var sevenZipPaths = new[]
