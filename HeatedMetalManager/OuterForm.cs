@@ -1252,21 +1252,18 @@ del ""%~f0""
     {
         var patterns = new Dictionary<FontStyle, string>
     {
+        { FontStyle.Bold | FontStyle.Italic, @"\*\*\*(.*?)\*\*\*" },
         { FontStyle.Bold, @"\*\*(.*?)\*\*" },
         { FontStyle.Italic, @"\*(.*?)\*" },
         { FontStyle.Underline, @"__(.*?)__" },
-        { FontStyle.Strikeout, @"~~(.*?)~~" },
-        { FontStyle.Bold | FontStyle.Italic, @"\*\*\*(.*?)\*\*\*" }
+        { FontStyle.Strikeout, @"~~(.*?)~~" }
     };
 
         var matches = new List<Tuple<int, int, FontStyle, string>>();
-
         foreach (var pattern in patterns)
         {
             var regex = new Regex(pattern.Value);
-            var matchCollection = regex.Matches(text);
-
-            foreach (Match match in matchCollection)
+            foreach (Match match in regex.Matches(text))
             {
                 matches.Add(Tuple.Create(
                     match.Index,
@@ -1279,25 +1276,27 @@ del ""%~f0""
 
         matches = matches.OrderBy(m => m.Item1).ToList();
 
-        int lastPos = 0;
+        int currentPos = 0;
         foreach (var match in matches)
         {
-            if (match.Item1 > lastPos)
+            if (match.Item1 < currentPos) continue;
+
+            if (match.Item1 > currentPos)
             {
                 rtb.SelectionFont = rtb.Font;
-                rtb.AppendText(text.Substring(lastPos, match.Item1 - lastPos));
+                rtb.AppendText(text.Substring(currentPos, match.Item1 - currentPos));
             }
 
             rtb.SelectionFont = new System.Drawing.Font(rtb.Font, match.Item3);
             rtb.AppendText(match.Item4);
 
-            lastPos = match.Item2;
+            currentPos = match.Item2;
         }
 
-        if (lastPos < text.Length)
+        if (currentPos < text.Length)
         {
             rtb.SelectionFont = rtb.Font;
-            rtb.AppendText(text.Substring(lastPos));
+            rtb.AppendText(text.Substring(currentPos));
         }
     }
 
